@@ -1,0 +1,206 @@
+# Alerts on the data profiling metrics of inference_log (step 8, refreshed by the feedback job at 06:00).
+# They run daily at 07:00 and email the bundle owner when a check fails, and again when it is back to normal.
+# Thresholds are a starting point: tune them to your traffic and risk appetite.
+resources:
+  alerts:
+    feature_drift:
+      display_name: "Credit risk: features drifted from training"
+      warehouse_id: ${var.warehouse_id}
+      custom_summary: "Feature distributions moved away from the training data"
+      custom_description: "Live applications look different from the data the model was trained on (see the features column). Open the monitoring dashboard (Numerical and Categorical Feature Drift) to see how, then check whether the change is real (new channel, campaign, partner) or a data problem. If it is real, retrain on next_training_set."
+      query_text: |
+        WITH served AS (  -- the model the training baseline belongs to
+          SELECT DISTINCT model_version FROM ${var.catalog}.${var.schema}.training_set_baseline
+        ),
+        profile AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_profile_metrics
+          WHERE slice_key IS NULL AND (log_type = 'BASELINE' OR (granularity = '1 day' AND window.end <= current_timestamp()))
+        ),
+        drift AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_drift_metrics
+          WHERE slice_key IS NULL AND granularity = '1 day' AND window.end <= current_timestamp()
+        )
+        -- Features whose distribution on the latest complete day differs from the training data.
+        -- Numerical: KS test significant AND PSI above 0.2 (PSI alone overreacts on small whole-number columns).
+        -- Categorical: chi-squared test significant AND total variation distance above 0.1 (10% of traffic moved between values).
+        , latest AS (SELECT max(window.start) AS day FROM drift WHERE drift_type = 'BASELINE' AND model_version IN (SELECT * FROM served))
+        SELECT
+          count(*) AS drifting_features,
+          coalesce(concat_ws(', ', collect_list(column_name)), '') AS features,
+          (SELECT day FROM latest) AS day
+        FROM drift
+        WHERE drift_type = 'BASELINE'
+          AND model_version IN (SELECT * FROM served)
+          AND window.start = (SELECT day FROM latest)
+          AND column_name NOT IN (':table', 'prediction', 'predicted_default', 'defaulted', 'customer_id')
+          AND ((ks_test.pvalue < 0.01 AND population_stability_index > 0.2)
+               OR (chi_squared_test.pvalue < 0.01 AND tv_distance > 0.1))
+      evaluation:
+        source:
+          name: drifting_features
+          display: "Drifting features"
+        comparison_operator: GREATER_THAN
+        threshold:
+          value:
+            double_value: 0
+        empty_result_state: OK
+        notification:
+          notify_on_ok: true
+          subscriptions:
+            - user_email: ${workspace.current_user.userName}
+      schedule:
+        quartz_cron_schedule: "0 0 7 * * ?"    # daily 07:00
+        timezone_id: Europe/Tallinn
+        pause_status: UNPAUSED          # development mode pauses schedules otherwise
+
+    decline_rate:
+      display_name: "Credit risk: decline rate moved more than 10 points"
+      warehouse_id: ${var.warehouse_id}
+      custom_summary: "The share of applications predicted to default changed by more than 10 percentage points"
+      custom_description: "The model is predicting default for a very different share of applications than in training. Check the feature drift alert and the dashboard (Prediction Drift) before the change shows up in approvals and losses."
+      query_text: |
+        WITH served AS (  -- the model the training baseline belongs to
+          SELECT DISTINCT model_version FROM ${var.catalog}.${var.schema}.training_set_baseline
+        ),
+        profile AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_profile_metrics
+          WHERE slice_key IS NULL AND (log_type = 'BASELINE' OR (granularity = '1 day' AND window.end <= current_timestamp()))
+        ),
+        drift AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_drift_metrics
+          WHERE slice_key IS NULL AND granularity = '1 day' AND window.end <= current_timestamp()
+        )
+        -- Share of applications the model predicts to default (score >= 20%, the decline line) on the latest complete day,
+        -- compared with the training data. A big move means the decisions change even if no single feature looks odd.
+        , live AS (
+          SELECT window.start AS day, avg AS rate FROM profile
+          WHERE log_type = 'INPUT' AND column_name = 'predicted_default' AND model_version IN (SELECT * FROM served)
+          ORDER BY day DESC LIMIT 1
+        ),
+        base AS (
+          SELECT avg AS rate FROM profile
+          WHERE log_type = 'BASELINE' AND column_name = 'predicted_default' AND model_version IN (SELECT * FROM served)
+        )
+        SELECT
+          round(abs(live.rate - base.rate) * 100, 1) AS change_pct_points,
+          round(live.rate * 100, 1) AS decline_rate_pct,
+          round(base.rate * 100, 1) AS training_decline_rate_pct,
+          live.day
+        FROM live CROSS JOIN base
+      evaluation:
+        source:
+          name: change_pct_points
+          display: "Change vs training (points)"
+        comparison_operator: GREATER_THAN
+        threshold:
+          value:
+            double_value: 10
+        empty_result_state: OK
+        notification:
+          notify_on_ok: true
+          subscriptions:
+            - user_email: ${workspace.current_user.userName}
+      schedule:
+        quartz_cron_schedule: "0 0 7 * * ?"    # daily 07:00
+        timezone_id: Europe/Tallinn
+        pause_status: UNPAUSED          # development mode pauses schedules otherwise
+
+    missing_features:
+      display_name: "Credit risk: features missing at scoring time"
+      warehouse_id: ${var.warehouse_id}
+      custom_summary: "More than 1% of requests were scored with a missing feature"
+      custom_description: "A looked-up or computed feature was missing for some requests (see the feature column). Training never had gaps, so this is online/offline skew: check that the feature table job ran, that the online store sync (publish_table) succeeded, and that new customers are in the feature table."
+      query_text: |
+        WITH served AS (  -- the model the training baseline belongs to
+          SELECT DISTINCT model_version FROM ${var.catalog}.${var.schema}.training_set_baseline
+        ),
+        profile AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_profile_metrics
+          WHERE slice_key IS NULL AND (log_type = 'BASELINE' OR (granularity = '1 day' AND window.end <= current_timestamp()))
+        ),
+        drift AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_drift_metrics
+          WHERE slice_key IS NULL AND granularity = '1 day' AND window.end <= current_timestamp()
+        )
+        -- Share of requests where a looked-up or computed feature is missing (NULL) on the latest complete day.
+        -- In training these are never missing, so any gap means the online store did not have the customer, or a feature
+        -- table stopped updating: classic online/offline skew. All model versions together.
+        , latest AS (SELECT max(window.start) AS day FROM profile WHERE log_type = 'INPUT' AND model_version = '*')
+        SELECT
+          round(coalesce(max(percent_null), 0) * 100, 2) AS max_missing_pct,
+          max_by(column_name, percent_null) AS feature,
+          (SELECT day FROM latest) AS day
+        FROM profile
+        WHERE log_type = 'INPUT' AND model_version = '*' AND window.start = (SELECT day FROM latest)
+          AND column_name IN ('avg_monthly_income_90d', 'total_spend_90d', 'txn_count_90d', 'spend_volatility_90d',
+                              'late_payments_90d', 'spend_to_income_90d', 'debt_to_income')
+      evaluation:
+        source:
+          name: max_missing_pct
+          display: "Max share missing (%)"
+        comparison_operator: GREATER_THAN
+        threshold:
+          value:
+            double_value: 1
+        empty_result_state: OK
+        notification:
+          notify_on_ok: true
+          subscriptions:
+            - user_email: ${workspace.current_user.userName}
+      schedule:
+        quartz_cron_schedule: "0 0 7 * * ?"    # daily 07:00
+        timezone_id: Europe/Tallinn
+        pause_status: UNPAUSED          # development mode pauses schedules otherwise
+
+    catch_rate:
+      display_name: "Credit risk: model catches fewer defaults"
+      warehouse_id: ${var.warehouse_id}
+      custom_summary: "The share of actual defaults the model caught fell by more than 10 percentage points"
+      custom_description: "On the latest day with known outcomes, the model caught clearly fewer of the customers who defaulted than it did on the training data. Review the drift alerts, then retrain on next_training_set and compare before promoting."
+      query_text: |
+        WITH served AS (  -- the model the training baseline belongs to
+          SELECT DISTINCT model_version FROM ${var.catalog}.${var.schema}.training_set_baseline
+        ),
+        profile AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_profile_metrics
+          WHERE slice_key IS NULL AND (log_type = 'BASELINE' OR (granularity = '1 day' AND window.end <= current_timestamp()))
+        ),
+        drift AS (
+          SELECT * FROM ${var.catalog}.${var.schema}.inference_log_drift_metrics
+          WHERE slice_key IS NULL AND granularity = '1 day' AND window.end <= current_timestamp()
+        )
+        -- Share of actual defaults the model caught (recall for "default") on the latest day that has outcomes,
+        -- compared with the training data. Outcomes arrive late in real life, so this looks at the latest labelled day.
+        , live AS (
+          SELECT window.start AS day, recall.one_vs_all['1'] AS rate FROM profile
+          WHERE log_type = 'INPUT' AND column_name = ':table' AND model_version IN (SELECT * FROM served)
+            AND recall.one_vs_all['1'] IS NOT NULL
+          ORDER BY day DESC LIMIT 1
+        ),
+        base AS (
+          SELECT recall.one_vs_all['1'] AS rate FROM profile
+          WHERE log_type = 'BASELINE' AND column_name = ':table' AND model_version IN (SELECT * FROM served)
+        )
+        SELECT
+          round((base.rate - live.rate) * 100, 1) AS drop_pct_points,
+          round(live.rate * 100, 1) AS caught_pct,
+          round(base.rate * 100, 1) AS training_caught_pct,
+          live.day
+        FROM live CROSS JOIN base
+      evaluation:
+        source:
+          name: drop_pct_points
+          display: "Drop vs training (points)"
+        comparison_operator: GREATER_THAN
+        threshold:
+          value:
+            double_value: 10
+        empty_result_state: OK
+        notification:
+          notify_on_ok: true
+          subscriptions:
+            - user_email: ${workspace.current_user.userName}
+      schedule:
+        quartz_cron_schedule: "0 0 7 * * ?"    # daily 07:00
+        timezone_id: Europe/Tallinn
+        pause_status: UNPAUSED          # development mode pauses schedules otherwise

@@ -14,6 +14,10 @@ variables:
   online_store:
     description: Online feature store name
     default: credit-demo-online-store
+  warehouse_id:
+    description: SQL warehouse that runs the monitoring alerts
+    lookup:
+      warehouse: Serverless Starter Warehouse
 
 include:
   - resources/*.yml

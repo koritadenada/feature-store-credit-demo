@@ -57,6 +57,9 @@ resources:
       description: Unpacks the inference table, refreshes drift monitoring and builds the next training set (steps 8 and 9).
       tags:
         demo: feature-store-credit
+      schedule:                      # daily, before the alerts at 07:00 (paused in development mode)
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: Europe/Tallinn
       parameters:
         - name: catalog
           default: ${var.catalog}

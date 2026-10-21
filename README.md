@@ -15,10 +15,11 @@ Everything is a Declarative Automation Bundle, so it can be redeployed to any wo
 | 4 | `src/04_function.py` | Request-time function in Unity Catalog: debt-to-income from request fields plus looked-up income |
 | 5 | `src/05_train.py` | Point-in-time training set (`FeatureLookup` + `FeatureFunction`), model logged with `fe.log_model` |
 | 6 | `src/06_serve.py` | Model Serving endpoint with automatic feature lookup and an inference table; the model returns the features it saw with every score |
-| 7 | `src/07_score.py` | One application scored live, then a stream of 300 (a third of them shifted, so there is drift to find) |
+| 7 | `src/07_score.py` | One application scored live, then a stream of 300 (a third of them shifted, so there is drift to find); the same applications scored with `score_batch` from the offline table give identical scores |
 | 7b | `src/07b_backfill_history.py` | Simulated two weeks of traffic with growing drift, scored by the live endpoint with point-in-time features, so the dashboard shows a trend |
 | 8 | `src/08_monitoring.py` | Inference table unpacked to one row per application; data profiling against the training baseline, with an auto-generated dashboard |
 | 8b | `scripts/fix_monitor_dashboard.py` | Adapts the auto-generated dashboard to a 0/1 prediction and label (run once after step 8 creates it) |
+| 8c | `resources/alerts.yml` | Four daily SQL alerts on the monitoring metrics: features drifted from training, decline rate moved, features missing at scoring time (online/offline skew), fewer defaults caught |
 | 9 | `src/09_next_training_set.py` | Logged requests joined with outcomes: the next training set matches what was known at decision time |
 | 10 | `src/10_cost.py` | What the demo cost, from `system.billing.usage` and list prices |
 
