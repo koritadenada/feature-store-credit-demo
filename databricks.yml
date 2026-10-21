@@ -1,0 +1,24 @@
+bundle:
+  name: feature-store-credit-demo
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for the demo objects
+    default: main
+  schema:
+    description: Schema for the demo objects (created if missing)
+    default: credit_feature_store
+  endpoint:
+    description: Model Serving endpoint name
+    default: credit-risk
+  online_store:
+    description: Online feature store name
+    default: credit-demo-online-store
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    mode: development

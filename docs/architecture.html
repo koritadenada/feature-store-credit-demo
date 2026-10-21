@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Feature Store on Databricks: one loan application, end to end</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lava:#FF3621; --lava2:#FF5F46; --peach:#FABFBA; --navy:#1B3139; --muted:#5A6B72;
+    --line:#E2E6EA; --line2:#CDD5DB; --card:#FFFFFF; --wash:#F5F7F9; --uc:#2272B4; --green:#00A06B;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#FFFFFF; overflow:hidden;
+    font-family:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--navy); }
+  #fit { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  #stage { position:relative; width:1280px; height:720px; background:#FFFFFF; transform-origin:center center; overflow:hidden; }
+
+  /* header */
+  .hdr { position:absolute; z-index:10; left:40px; right:40px; top:26px; height:44px; display:flex; align-items:center; justify-content:space-between; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand svg { width:28px; height:31px; }
+  .brand .t { font-size:19px; font-weight:700; letter-spacing:-.01em; }
+  .pills { display:flex; gap:8px; }
+  .pill { display:flex; align-items:center; gap:8px; padding:7px 13px 7px 8px; border-radius:999px; border:1px solid var(--line);
+    font-size:13px; font-weight:500; color:var(--muted); background:#fff; transition:all .4s; }
+  .pill b { width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+    background:var(--wash); color:var(--muted); font-size:12px; transition:all .4s; }
+  .pill { cursor:pointer; user-select:none; }
+  .pill:hover { border-color:var(--line2); color:var(--navy); }
+  .pill.cur { border-color:var(--navy); color:var(--navy); box-shadow:0 2px 8px rgba(27,49,57,.10); }
+  .pill.cur b { background:var(--lava); color:#fff; }
+  .pill.done b { background:var(--navy); color:#fff; }
+
+  /* scenes */
+  .scene { position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .6s ease; }
+  .scene.show { opacity:1; pointer-events:auto; }
+  .stitle { position:absolute; left:40px; top:96px; }
+  .stitle .k { font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--lava); }
+  .stitle .h { font-size:30px; font-weight:700; letter-spacing:-.015em; margin-top:2px; }
+
+  .node { position:absolute; background:var(--card); border:1px solid var(--line); border-top:4px solid var(--line2);
+    border-radius:12px; padding:16px 18px; box-shadow:0 2px 10px rgba(27,49,57,.07);
+    display:flex; gap:11px; align-items:center; }
+  .node .ico { flex:0 0 38px; width:38px; height:38px; }
+  .node .ico svg { width:38px; height:38px; display:block; }
+  .node .name { font-size:15px; font-weight:700; line-height:1.2; }
+  .node .desc { font-size:12.5px; color:var(--muted); margin-top:4px; line-height:1.35; }
+  .node.ext { border-top-color:var(--line2); background:var(--wash); }
+  .node.db { border-top-color:var(--lava); }
+  .node.hero { border-top-color:var(--navy); }
+  .badge { position:absolute; right:10px; top:-13px; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px;
+    background:#fff; border:1px solid var(--line2); color:var(--muted); letter-spacing:.02em; }
+  .badge.on { border-color:var(--lava); color:var(--lava); }
+
+  /* reveal */
+  .rev { opacity:0; transform:translateY(8px); transition:opacity .5s ease, transform .5s ease; }
+  .rev.on { opacity:1; transform:none; }
+
+  svg.wires { position:absolute; inset:0; width:1280px; height:720px; pointer-events:none; overflow:visible; }
+  .wire { fill:none; stroke:var(--line2); stroke-width:2.2; stroke-dasharray:1; stroke-dashoffset:1; transition:stroke-dashoffset .8s ease; }
+  .wire.hot { stroke:var(--lava); }
+  .wire.dash { stroke-dasharray:none; }
+  .wire.on { stroke-dashoffset:0; }
+  .wlabel { font-size:12px; fill:var(--muted); font-weight:500; opacity:0; transition:opacity .5s; }
+  .wlabel.on { opacity:1; }
+  .pulse { fill:var(--lava); opacity:0; }
+  .pulse.on { opacity:1; }
+
+  /* endpoint card */
+  .ep { position:absolute; background:#fff; border:1px solid var(--line); border-top:4px solid var(--navy); border-radius:14px;
+    box-shadow:0 4px 16px rgba(27,49,57,.10); overflow:hidden; }
+  .ep .bar { background:var(--navy); color:#fff; display:flex; align-items:center; gap:10px; padding:11px 16px; font-weight:700; font-size:15px; }
+  .ep .bar svg { width:26px; height:26px; }
+  .ep .bar .tag { margin-left:auto; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--peach); }
+  .step { display:flex; align-items:center; gap:12px; margin:10px 14px; padding:10px 12px; border-radius:10px;
+    border:1px solid var(--line); background:var(--wash); transition:all .45s ease; }
+  .step .n { width:26px; height:26px; flex:0 0 26px; border-radius:50%; background:#fff; border:1px solid var(--line2);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:var(--muted); transition:all .45s; }
+  .step .tx { font-size:14px; font-weight:500; }
+  .step .tx span { display:block; font-size:12px; color:var(--muted); font-weight:400; margin-top:2px; }
+  .step .si { margin-left:auto; width:28px; height:28px; opacity:.35; transition:opacity .45s; }
+  .step .si svg { width:28px; height:28px; }
+  .step.on { background:#fff; border-color:var(--lava); box-shadow:0 2px 10px rgba(255,54,33,.12); }
+  .step.on .n { background:var(--lava); border-color:var(--lava); color:#fff; }
+  .step.on .si { opacity:1; }
+
+  /* request / score labels and moving envelopes */
+  .chip { position:absolute; padding:6px 11px; border-radius:8px; font-size:12.5px; font-weight:700; white-space:nowrap;
+    background:#fff; border:1.5px solid var(--lava); color:var(--navy); }
+  .chip.dark { border-color:var(--navy); }
+  .chip code, .packet code { font-family:ui-monospace,Menlo,monospace; font-weight:600; font-size:12px; }
+  .env { position:absolute; width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 10px rgba(27,49,57,.2); opacity:0; transition:transform 1.5s cubic-bezier(.55,.05,.35,1), opacity .3s; }
+  .env svg { width:16px; height:16px; }
+  .env.req { background:var(--lava); } .env.res { background:var(--navy); }
+  .env.on { opacity:1; transform:translateX(var(--dx)); }
+  /* moving request / score chips (unused) */
+  .packet { position:absolute; padding:8px 12px; border-radius:9px; font-size:12.5px; font-weight:700; white-space:nowrap;
+    box-shadow:0 3px 12px rgba(27,49,57,.16); opacity:0; transition:transform 1.6s cubic-bezier(.55,.05,.35,1), opacity .3s; }
+  .packet code { font-family:"DM Mono",ui-monospace,Menlo,monospace; font-weight:500; font-size:12px; }
+  .packet.req { background:var(--lava); color:#fff; }
+  .packet.res { background:var(--navy); color:#fff; }
+  .packet.on { opacity:1; transform:translateX(var(--dx)); }
+
+  /* mini drift chart */
+  .chart { display:flex; align-items:flex-end; gap:5px; height:34px; margin-top:8px; }
+  .chart i { display:block; width:14px; border-radius:3px 3px 0 0; background:var(--peach); height:4px; transition:height .9s ease; }
+  .chart i.base { background:var(--line2); }
+  .on .chart i { height:var(--h); }
+  .on .chart i.hi { background:var(--lava); }
+
+  /* caption */
+  .cap { position:absolute; left:40px; right:40px; bottom:34px; height:56px; display:flex; align-items:center; gap:14px;
+    border-radius:12px; background:var(--wash); border:1px solid var(--line); padding:0 18px; }
+  .cap .bar { width:4px; height:28px; border-radius:2px; background:var(--lava); flex:0 0 4px; }
+  .cap .txt { font-size:17px; font-weight:500; transition:opacity .35s ease; }
+  .cap .txt b { color:var(--lava); font-weight:700; }
+
+  /* overview blocks */
+  .blk { position:absolute; top:186px; width:360px; height:300px; border-radius:16px; background:#fff; border:1px solid var(--line);
+    box-shadow:0 4px 16px rgba(27,49,57,.08); padding:18px 20px; }
+  .blk { cursor:pointer; transition:box-shadow .2s, border-color .2s; }
+  .blk:hover { border-color:var(--line2); box-shadow:0 6px 20px rgba(27,49,57,.14); }
+  .blk .num { width:34px; height:34px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .blk .bt { font-size:20px; font-weight:700; margin-top:12px; }
+  .blk .bd { font-size:13.5px; color:var(--muted); margin-top:4px; line-height:1.4; }
+  .blk .icons { display:flex; gap:10px; margin-top:14px; }
+  .blk .icons svg { width:38px; height:38px; }
+  .blk .run { position:absolute; left:20px; right:20px; bottom:16px; border-top:1px dashed var(--line2); padding-top:10px; font-size:13px; }
+  .blk .run div { display:flex; justify-content:space-between; margin-top:4px; }
+  .blk .run b { font-weight:700; }
+  .blk .run .always { color:var(--lava); }
+  .blk .run .lbl { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+
+  /* intro */
+  .intro { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+  .intro svg { width:58px; height:64px; }
+  .intro .a { font-size:44px; font-weight:700; letter-spacing:-.02em; margin-top:22px; }
+  .intro .b { font-size:19px; color:var(--muted); margin-top:10px; }
+  .intro .parts { display:flex; gap:14px; margin-top:30px; }
+  .intro .parts span { padding:9px 16px; border-radius:999px; border:1px solid var(--line); font-weight:500; font-size:15px; }
+  .intro .parts b { color:var(--lava); margin-right:6px; }
+
+
+  /* precomputed features zoom-in */
+  .zc { position:absolute; background:#fff; border:1px solid var(--line); border-top:4px solid var(--line2); border-radius:12px;
+    box-shadow:0 2px 10px rgba(27,49,57,.07); padding:12px 14px; }
+  .zc .zh { display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px; margin-bottom:8px; }
+  .zc .zh svg { width:26px; height:26px; }
+  .zc .zs { font-size:11.5px; color:var(--muted); margin:-4px 0 8px; }
+  .kv { display:flex; justify-content:space-between; gap:10px; font-family:ui-monospace,Menlo,monospace; font-size:12.5px;
+    padding:5px 8px; border-radius:6px; transition:background .4s, color .4s; }
+  .kv span:first-child { color:var(--muted); }
+  .kv b { font-weight:600; color:var(--navy); }
+  .mk.on { background:#FFE3DE; }
+  .mk.on span:first-child { color:var(--lava); }
+  .mk2.on { background:#E5EEF1; }
+  .bigv { font-size:30px; font-weight:700; color:var(--lava); margin-top:6px; }
+  .formula { font-family:ui-monospace,Menlo,monospace; font-size:13px; background:var(--wash); border-radius:6px; padding:8px; margin-top:8px; }
+  .tagsrc { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:1px 6px; border-radius:4px; margin-left:6px; }
+  .tagsrc.req { background:#FFE3DE; color:var(--lava); } .tagsrc.lk { background:#E5EEF1; color:var(--navy); }
+
+  /* decision strip */
+  .dec { position:absolute; background:#fff; border:1px solid var(--line); border-top:4px solid var(--green); border-radius:12px;
+    box-shadow:0 2px 10px rgba(27,49,57,.07); padding:10px 16px; }
+  .dec .row { display:flex; align-items:center; justify-content:space-between; }
+  .dec .lbl { font-weight:700; font-size:15px; }
+  .dec .ok { background:var(--green); color:#fff; font-weight:700; font-size:14px; padding:4px 12px; border-radius:999px; letter-spacing:.04em; }
+  .zones { position:relative; display:flex; height:14px; margin:22px 0 6px; }
+  .zones i:first-of-type { border-radius:7px 0 0 7px; } .zones i:last-of-type { border-radius:0 7px 7px 0; }
+  .zones i { display:block; height:100%; }
+  .zticks { display:flex; font-size:11.5px; color:var(--muted); }
+  .zticks span { flex:1; }
+  .marker { position:absolute; top:-9px; width:3px; height:32px; background:var(--navy); border-radius:2px; }
+  .marker b { position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--navy); white-space:nowrap; }
+  .dec .note { font-size:10.5px; color:var(--muted); }
+
+  .uclink { color:var(--uc); font-weight:700; text-decoration:none; border-bottom:1px solid currentColor; }
+  .uclink:hover { color:var(--lava); }
+  .hint { position:absolute; right:14px; bottom:8px; font-size:10.5px; color:#B8C2C8; }
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+
+  <div class="hdr" id="hdr">
+    <div class="brand"><svg viewBox="0 0 300 331" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M283.923 136.449L150.144 213.624L6.88995 131.168L0 134.982V194.844L150.144 281.115L283.923 204.234V235.926L150.144 313.1L6.88995 230.644L0 234.458V244.729L150.144 331L300 244.729V184.867L293.11 181.052L150.144 263.215L16.0766 186.334V154.643L150.144 231.524L300 145.253V86.2713L292.536 81.8697L150.144 163.739L22.9665 90.9663L150.144 17.8998L254.641 78.055L263.828 72.773V65.4371L150.144 0L0 86.2713V95.6613L150.144 181.933L283.923 104.758V136.449Z" fill="#FF3621"/>
+</svg><div class="t">One loan application, end to end</div></div>
+    <div class="pills">
+      <div class="pill" data-p="0"><b>&#8635;</b>Overview</div>
+      <div class="pill" data-p="1"><b>1</b>Ahead of time</div>
+      <div class="pill" data-p="2"><b>2</b>At application time</div>
+      <div class="pill" data-p="3"><b>2b</b>Precomputed features</div>
+      <div class="pill" data-p="4"><b>3</b>After the decision</div>
+    </div>
+  </div>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="scene" data-scene="4" data-dur="9000">
+    <div class="stitle rev" data-t="0"><div class="k">The full loop</div><div class="h">What runs all the time, and what doesn't</div></div>
+    <svg class="wires" viewBox="0 0 1280 720">
+      <path id="p4a" class="wire hot" pathLength="1" d="M 400 336 L 460 336" data-t="1100"/>
+      <path id="p4b" class="wire hot" pathLength="1" d="M 820 336 L 880 336" data-t="2000"/>
+      <path id="p4c" class="wire" pathLength="1" d="M 1060 488 L 1060 520 C 1060 556, 1010 562, 960 562 L 320 562 C 270 562, 220 556, 220 520 L 220 488" data-t="2900"/>
+      <text class="wlabel" x="640" y="586" text-anchor="middle" data-t="3100">retrain with what the model saw</text>
+      <circle class="pulse" r="5" data-t="1400"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#p4a"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="2300"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#p4b"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="3300"><animateMotion dur="3.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#p4c"/></animateMotion></circle>
+    </svg>
+    <div class="blk rev" data-t="300" data-go="1" style="left:40px">
+      <div class="num">1</div><div class="bt">Ahead of time</div><div class="bd">Features computed once, synced to the online store</div>
+      <div class="icons"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M220.408 401.342L362.785 257.242L220.408 113.143L220.408 56L299.582 56L299.582 136.544L314.387 142.792L370.291 85.8379L426.713 143.32L370.807 200.274L376.941 215.356H456.002V296.644H376.941L370.807 311.726L426.713 368.68L370.291 426.162L314.385 369.208L299.582 375.456L299.582 456H220.408L220.408 401.342Z" fill="#FABFBA"/>
+<path d="M156.584 100.984V100.722L308.78 256.001L156.584 411.281V411.004L141.711 426.159L85.2895 368.676L141.196 311.722L135.061 296.641H56V215.352H135.061L141.196 200.271L85.2895 143.317L141.711 85.8345L156.584 100.984Z" fill="#FF5F46"/>
+</svg><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M255.38 185.263L194.172 220.632V291.368L255.38 326.737L316.588 291.368V220.632L255.38 185.263Z" fill="#FF5F46"/>
+<path d="M384.434 181.579H454.86L419.462 120.421L384.434 181.579Z" fill="#FF5F46"/>
+<path d="M384.434 330.79L419.831 391.947L455.229 330.79H384.434Z" fill="#FF5F46"/>
+<path d="M219.98 466H290.407L255.009 404.842L219.98 466Z" fill="#FF5F46"/>
+<path d="M55.5312 330.79L90.9288 391.947L126.326 330.79H55.5312Z" fill="#FF5F46"/>
+<path d="M55.5312 181.579H125.958L90.5601 120.421L55.5312 181.579Z" fill="#FF5F46"/>
+<path d="M219.98 46L255.378 107.158L290.776 46H219.98Z" fill="#FF5F46"/>
+<path d="M322.487 58.1582L281.559 128.895L352.354 169.79L393.282 99.0529L322.487 58.1582Z" fill="#FABFBA"/>
+<path d="M460.392 215.105H378.535V296.895H460.392V215.105Z" fill="#FABFBA"/>
+<path d="M352.354 342.579L281.559 383.474L322.487 454.211L393.282 413.316L352.354 342.579Z" fill="#FABFBA"/>
+<path d="M158.038 342.579L117.109 413.316L187.905 454.211L228.833 383.474L158.038 342.579Z" fill="#FABFBA"/>
+<path d="M131.857 215.105H50V296.895H131.857V215.105Z" fill="#FABFBA"/>
+<path d="M187.905 58.1582L117.109 99.0529L158.038 169.79L228.833 128.895L187.905 58.1582Z" fill="#FABFBA"/>
+</svg><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M448 305.954H447.994C419.48 315.543 386.842 321.022 352 321.022C317.158 321.022 284.484 315.543 256.006 305.954H64V203.887H448V305.954ZM160 290.251C125.156 290.251 92.5155 295.961 64 305.953H256C227.52 295.961 194.844 290.251 160 290.251Z" fill="#FABFBA"/>
+<path d="M160.451 327.787C195.132 327.787 227.655 332.986 256.001 342.085H256C284.346 351.184 316.868 356.383 351.549 356.383C385.146 356.383 416.684 351.504 444.426 342.927L447.099 342.085H448V447.999H64V342.085H64.9023C93.2839 332.986 125.771 327.787 160.451 327.787Z" fill="#FF5F46"/>
+<rect x="64" y="64" width="384" height="105.914" fill="#FABFBA"/>
+</svg></div>
+      <div class="run"><div class="lbl">What runs</div>
+        <div><span>Feature job</span><b>on schedule</b></div>
+        <div><span>Online feature store</span><b class="always">always on</b></div></div>
+    </div>
+    <div class="blk rev" data-t="1200" data-go="2" style="left:460px">
+      <div class="num">2</div><div class="bt">At application time</div><div class="bd">One request: look up, run the function, score</div>
+      <div class="icons"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M125.97 93.0402C131.97 89.5402 136.01 83.0302 136.01 75.5702C136.01 64.4102 126.96 55.3602 115.8 55.3602H108.64C107.69 37.6002 93 23.4902 75 23.4902C57 23.4902 42.31 37.6002 41.36 55.3602H34.2C23.04 55.3602 13.99 64.4102 13.99 75.5702C13.99 86.7302 23.04 95.7802 34.2 95.7802H114.42" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M114.42 95.7803V79.5903H108.97" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M95.89 79.5903H35.58V95.7803" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 95.7803H114.42V111.97H77.05" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M63.8199 111.97H35.58" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 87.6904H44.2" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M52.61 87.6904H87.48" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M99.63 87.6904H103.36" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 103.88H44.2" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M52.61 103.88H71.29" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M83.28 103.88H103.36" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M110.06 66.9204L50.48 126.5" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+</svg><svg viewBox="0 0 512 512" fill="none"><path d="M136 136L256 256M376 136L256 256M256 256L136 376M256 256L376 376" stroke="#FABFBA" stroke-width="28"/><circle cx="256" cy="256" r="62" fill="#FF5F46"/><circle cx="120" cy="120" r="46" fill="#FABFBA"/><circle cx="392" cy="120" r="46" fill="#FABFBA"/><circle cx="120" cy="392" r="46" fill="#FF5F46"/><circle cx="392" cy="392" r="46" fill="#FF5F46"/></svg></div>
+      <div class="run"><div class="lbl">What runs</div>
+        <div><span>Serving endpoint</span><b>sized to your traffic</b></div>
+        <div><span>Scale to zero</span><b>dev and test only</b></div></div>
+    </div>
+    <div class="blk rev" data-t="2100" data-go="4" style="left:880px">
+      <div class="num">3</div><div class="bt">After the decision</div><div class="bd">Log every request, watch drift, retrain on real outcomes</div>
+      <div class="icons"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M126.77 25.11H23.23C21.2868 25.1126 19.4239 25.8857 18.0499 27.2598C16.6758 28.6339 15.9027 30.4968 15.9 32.44V47H122.45V44H18.9V32.44C18.9 31.2916 19.3562 30.1902 20.1683 29.3782C20.9803 28.5662 22.0816 28.11 23.23 28.11H126.77C127.918 28.11 129.02 28.5662 129.832 29.3782C130.644 30.1902 131.1 31.2916 131.1 32.44V117.56C131.1 118.708 130.644 119.81 129.832 120.622C129.02 121.434 127.918 121.89 126.77 121.89H23.23C22.0816 121.89 20.9803 121.434 20.1683 120.622C19.3562 119.81 18.9 118.708 18.9 117.56V58.26H15.9V117.56C15.9027 119.503 16.6758 121.366 18.0499 122.74C19.4239 124.114 21.2868 124.887 23.23 124.89H126.77C128.713 124.887 130.576 124.114 131.95 122.74C133.324 121.366 134.097 119.503 134.1 117.56V32.44C134.097 30.4968 133.324 28.6339 131.95 27.2598C130.576 25.8857 128.713 25.1126 126.77 25.11Z" fill="#FF5F46"/>
+<path d="M25.6 36.18C25.602 36.6364 25.7391 37.0821 25.9942 37.4606C26.2492 37.8392 26.6106 38.1337 27.0329 38.307C27.4552 38.4803 27.9193 38.5246 28.3668 38.4344C28.8142 38.3441 29.2249 38.1233 29.5469 37.7999C29.869 37.4764 30.088 37.0648 30.1763 36.617C30.2646 36.1692 30.2183 35.7052 30.0432 35.2837C29.8681 34.8622 29.572 34.502 29.1923 34.2486C28.8127 33.9952 28.3664 33.86 27.91 33.86C27.6058 33.86 27.3046 33.9201 27.0237 34.0368C26.7428 34.1535 26.4877 34.3245 26.273 34.5401C26.0584 34.7557 25.8885 35.0115 25.773 35.2929C25.6575 35.5743 25.5987 35.8758 25.6 36.18Z" fill="#FF5F46"/>
+<path d="M34.51 36.18C34.51 36.6388 34.6461 37.0874 34.901 37.4689C35.1559 37.8504 35.5183 38.1478 35.9422 38.3234C36.3661 38.499 36.8326 38.5449 37.2826 38.4554C37.7327 38.3659 38.146 38.1449 38.4705 37.8205C38.795 37.496 39.0159 37.0826 39.1054 36.6326C39.195 36.1826 39.149 35.7161 38.9734 35.2922C38.7978 34.8682 38.5005 34.5059 38.1189 34.251C37.7374 33.9961 37.2889 33.86 36.83 33.86C36.2147 33.86 35.6246 34.1044 35.1895 34.5395C34.7544 34.9746 34.51 35.5647 34.51 36.18Z" fill="#FF5F46"/>
+<path d="M43.4301 36.18C43.4301 36.6393 43.5664 37.0882 43.8218 37.47C44.0771 37.8517 44.44 38.149 44.8646 38.3243C45.2891 38.4996 45.756 38.545 46.2064 38.4547C46.6567 38.3643 47.07 38.1424 47.3941 37.8169C47.7181 37.4915 47.9383 37.0771 48.0267 36.6265C48.1151 36.1758 48.0677 35.709 47.8906 35.2852C47.7134 34.8615 47.4145 34.4998 47.0317 34.2461C46.6489 33.9924 46.1993 33.858 45.7401 33.86C45.1265 33.8627 44.5389 34.1082 44.106 34.543C43.6731 34.9778 43.43 35.5664 43.4301 36.18Z" fill="#FF5F46"/>
+<path d="M122.93 112.58V58.24H27.0699V112.58H30.0699V96.47H45.6399V112.58H48.6399V96.47H64.2199V112.58H67.2199V96.47H82.7899V112.58H85.7899V96.47H101.36V112.58H104.36V96.47H119.93V112.58H122.93ZM119.93 75.85H104.36V61.24H119.93V75.85ZM67.2199 61.24H82.7899V75.85H67.2199V61.24ZM64.2199 75.85H48.6399V61.24H64.2199V75.85ZM85.7899 61.24H101.36V75.85H85.7899V61.24ZM45.6399 61.24V75.85H30.0699V61.24H45.6399ZM30.0699 93.47V78.85H45.6399V93.47H30.0699ZM48.6399 93.47V78.85H64.2199V93.47H48.6399ZM67.2199 93.47V78.85H82.7899V93.47H67.2199ZM85.7899 93.47V78.85H101.36V93.47H85.7899ZM104.36 93.47V78.85H119.93V93.47H104.36Z" fill="#FF5F46"/>
+</svg><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M447.936 64.0002L275.936 64.0002L275.936 208L447.936 208L447.936 64.0002Z" fill="#FABFBA"/>
+<path d="M275.998 448L447.998 448L447.998 240L275.998 240L275.998 448Z" fill="#FF5F46"/>
+<path d="M235.998 63.9998L63.9981 63.9998L63.9981 304L235.998 304L235.998 63.9998Z" fill="#FF5F46"/>
+<path d="M64.0664 448L236.066 448L236.066 338L64.0664 338L64.0664 448Z" fill="#FABFBA"/>
+</svg></div>
+      <div class="run"><div class="lbl">What runs</div>
+        <div><span>Inference logging</span><b>billed on use</b></div>
+        <div><span>Data profiling</span><b>on schedule</b></div></div>
+    </div>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="scene" data-scene="1" data-dur="10500">
+    <div class="stitle rev" data-t="0"><div class="k">Part 1</div><div class="h">Ahead of time: compute features once</div></div>
+    <svg class="wires" viewBox="0 0 1280 720">
+      <path id="p1a" class="wire" pathLength="1" d="M 250 345 L 300 345" data-t="900"/>
+      <path id="p1b" class="wire" pathLength="1" d="M 510 345 L 560 345" data-t="2300"/>
+      <path id="p1c" class="wire hot" pathLength="1" d="M 770 330 C 800 330, 790 250, 830 250" data-t="4200"/>
+      <path id="p1d" class="wire" pathLength="1" d="M 770 360 C 800 360, 790 440, 830 440" data-t="6200"/>
+      <path id="p1e" class="wire" pathLength="1" d="M 1040 440 L 1070 440" data-t="7600"/>
+      <text class="wlabel" x="782" y="262" text-anchor="end" data-t="4400">publish (Triggered)</text>
+      <circle class="pulse" r="5" data-t="1300"><animateMotion dur="1.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#p1a"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="2700"><animateMotion dur="1.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#p1b"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="4600"><animateMotion dur="1.6s" repeatCount="indefinite" begin="indefinite"><mpath href="#p1c"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="6600"><animateMotion dur="1.6s" repeatCount="indefinite" begin="indefinite"><mpath href="#p1d"/></animateMotion></circle>
+    </svg>
+    <div class="node ext rev" data-t="400" style="left:40px;top:288px;width:210px;height:116px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><ellipse cx="256" cy="120" rx="160" ry="56" fill="#FF5F46"/><path d="M96 120V392C96 423 168 448 256 448C344 448 416 423 416 392V120C416 151 344 176 256 176C168 176 96 151 96 120Z" fill="#FABFBA"/><path d="M96 256C96 287 168 312 256 312C344 312 416 287 416 256" stroke="#FF5F46" stroke-width="24"/></svg></div><div><div class="name">Your data</div><div class="desc">Core banking, CRM, transactions</div></div></div>
+    <div class="node db rev" data-t="1200" style="left:300px;top:288px;width:210px;height:116px">
+      <span class="badge">on schedule</span>
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M220.408 401.342L362.785 257.242L220.408 113.143L220.408 56L299.582 56L299.582 136.544L314.387 142.792L370.291 85.8379L426.713 143.32L370.807 200.274L376.941 215.356H456.002V296.644H376.941L370.807 311.726L426.713 368.68L370.291 426.162L314.385 369.208L299.582 375.456L299.582 456H220.408L220.408 401.342Z" fill="#FABFBA"/>
+<path d="M156.584 100.984V100.722L308.78 256.001L156.584 411.281V411.004L141.711 426.159L85.2895 368.676L141.196 311.722L135.061 296.641H56V215.352H135.061L141.196 200.271L85.2895 143.317L141.711 85.8345L156.584 100.984Z" fill="#FF5F46"/>
+</svg></div><div><div class="name">Feature job</div><div class="desc">Lakeflow Jobs computes 90-day aggregates</div></div></div>
+    <div class="node db rev" data-t="2600" style="left:560px;top:288px;width:210px;height:116px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M255.38 185.263L194.172 220.632V291.368L255.38 326.737L316.588 291.368V220.632L255.38 185.263Z" fill="#FF5F46"/>
+<path d="M384.434 181.579H454.86L419.462 120.421L384.434 181.579Z" fill="#FF5F46"/>
+<path d="M384.434 330.79L419.831 391.947L455.229 330.79H384.434Z" fill="#FF5F46"/>
+<path d="M219.98 466H290.407L255.009 404.842L219.98 466Z" fill="#FF5F46"/>
+<path d="M55.5312 330.79L90.9288 391.947L126.326 330.79H55.5312Z" fill="#FF5F46"/>
+<path d="M55.5312 181.579H125.958L90.5601 120.421L55.5312 181.579Z" fill="#FF5F46"/>
+<path d="M219.98 46L255.378 107.158L290.776 46H219.98Z" fill="#FF5F46"/>
+<path d="M322.487 58.1582L281.559 128.895L352.354 169.79L393.282 99.0529L322.487 58.1582Z" fill="#FABFBA"/>
+<path d="M460.392 215.105H378.535V296.895H460.392V215.105Z" fill="#FABFBA"/>
+<path d="M352.354 342.579L281.559 383.474L322.487 454.211L393.282 413.316L352.354 342.579Z" fill="#FABFBA"/>
+<path d="M158.038 342.579L117.109 413.316L187.905 454.211L228.833 383.474L158.038 342.579Z" fill="#FABFBA"/>
+<path d="M131.857 215.105H50V296.895H131.857V215.105Z" fill="#FABFBA"/>
+<path d="M187.905 58.1582L117.109 99.0529L158.038 169.79L228.833 128.895L187.905 58.1582Z" fill="#FABFBA"/>
+</svg></div><div><div class="name">Feature table</div><div class="desc">One Delta table in Unity Catalog: key + timestamp</div></div></div>
+    <div class="node db rev" data-t="4500" style="left:830px;top:193px;width:210px;height:116px">
+      <span class="badge on">always on</span>
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M448 305.954H447.994C419.48 315.543 386.842 321.022 352 321.022C317.158 321.022 284.484 315.543 256.006 305.954H64V203.887H448V305.954ZM160 290.251C125.156 290.251 92.5155 295.961 64 305.953H256C227.52 295.961 194.844 290.251 160 290.251Z" fill="#FABFBA"/>
+<path d="M160.451 327.787C195.132 327.787 227.655 332.986 256.001 342.085H256C284.346 351.184 316.868 356.383 351.549 356.383C385.146 356.383 416.684 351.504 444.426 342.927L447.099 342.085H448V447.999H64V342.085H64.9023C93.2839 332.986 125.771 327.787 160.451 327.787Z" fill="#FF5F46"/>
+<rect x="64" y="64" width="384" height="105.914" fill="#FABFBA"/>
+</svg></div><div><div class="name">Online feature store</div><div class="desc">Lakebase: low-latency lookups by customer</div></div></div>
+    <div class="node db rev" data-t="6500" style="left:830px;top:383px;width:210px;height:116px">
+      <div class="ico"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M126.77 25.11H23.23C21.2868 25.1126 19.4239 25.8857 18.0499 27.2598C16.6758 28.6339 15.9027 30.4968 15.9 32.44V47H122.45V44H18.9V32.44C18.9 31.2916 19.3562 30.1902 20.1683 29.3782C20.9803 28.5662 22.0816 28.11 23.23 28.11H126.77C127.918 28.11 129.02 28.5662 129.832 29.3782C130.644 30.1902 131.1 31.2916 131.1 32.44V117.56C131.1 118.708 130.644 119.81 129.832 120.622C129.02 121.434 127.918 121.89 126.77 121.89H23.23C22.0816 121.89 20.9803 121.434 20.1683 120.622C19.3562 119.81 18.9 118.708 18.9 117.56V58.26H15.9V117.56C15.9027 119.503 16.6758 121.366 18.0499 122.74C19.4239 124.114 21.2868 124.887 23.23 124.89H126.77C128.713 124.887 130.576 124.114 131.95 122.74C133.324 121.366 134.097 119.503 134.1 117.56V32.44C134.097 30.4968 133.324 28.6339 131.95 27.2598C130.576 25.8857 128.713 25.1126 126.77 25.11Z" fill="#FF5F46"/>
+<path d="M25.6 36.18C25.602 36.6364 25.7391 37.0821 25.9942 37.4606C26.2492 37.8392 26.6106 38.1337 27.0329 38.307C27.4552 38.4803 27.9193 38.5246 28.3668 38.4344C28.8142 38.3441 29.2249 38.1233 29.5469 37.7999C29.869 37.4764 30.088 37.0648 30.1763 36.617C30.2646 36.1692 30.2183 35.7052 30.0432 35.2837C29.8681 34.8622 29.572 34.502 29.1923 34.2486C28.8127 33.9952 28.3664 33.86 27.91 33.86C27.6058 33.86 27.3046 33.9201 27.0237 34.0368C26.7428 34.1535 26.4877 34.3245 26.273 34.5401C26.0584 34.7557 25.8885 35.0115 25.773 35.2929C25.6575 35.5743 25.5987 35.8758 25.6 36.18Z" fill="#FF5F46"/>
+<path d="M34.51 36.18C34.51 36.6388 34.6461 37.0874 34.901 37.4689C35.1559 37.8504 35.5183 38.1478 35.9422 38.3234C36.3661 38.499 36.8326 38.5449 37.2826 38.4554C37.7327 38.3659 38.146 38.1449 38.4705 37.8205C38.795 37.496 39.0159 37.0826 39.1054 36.6326C39.195 36.1826 39.149 35.7161 38.9734 35.2922C38.7978 34.8682 38.5005 34.5059 38.1189 34.251C37.7374 33.9961 37.2889 33.86 36.83 33.86C36.2147 33.86 35.6246 34.1044 35.1895 34.5395C34.7544 34.9746 34.51 35.5647 34.51 36.18Z" fill="#FF5F46"/>
+<path d="M43.4301 36.18C43.4301 36.6393 43.5664 37.0882 43.8218 37.47C44.0771 37.8517 44.44 38.149 44.8646 38.3243C45.2891 38.4996 45.756 38.545 46.2064 38.4547C46.6567 38.3643 47.07 38.1424 47.3941 37.8169C47.7181 37.4915 47.9383 37.0771 48.0267 36.6265C48.1151 36.1758 48.0677 35.709 47.8906 35.2852C47.7134 34.8615 47.4145 34.4998 47.0317 34.2461C46.6489 33.9924 46.1993 33.858 45.7401 33.86C45.1265 33.8627 44.5389 34.1082 44.106 34.543C43.6731 34.9778 43.43 35.5664 43.4301 36.18Z" fill="#FF5F46"/>
+<path d="M122.93 112.58V58.24H27.0699V112.58H30.0699V96.47H45.6399V112.58H48.6399V96.47H64.2199V112.58H67.2199V96.47H82.7899V112.58H85.7899V96.47H101.36V112.58H104.36V96.47H119.93V112.58H122.93ZM119.93 75.85H104.36V61.24H119.93V75.85ZM67.2199 61.24H82.7899V75.85H67.2199V61.24ZM64.2199 75.85H48.6399V61.24H64.2199V75.85ZM85.7899 61.24H101.36V75.85H85.7899V61.24ZM45.6399 61.24V75.85H30.0699V61.24H45.6399ZM30.0699 93.47V78.85H45.6399V93.47H30.0699ZM48.6399 93.47V78.85H64.2199V93.47H48.6399ZM67.2199 93.47V78.85H82.7899V93.47H67.2199ZM85.7899 93.47V78.85H101.36V93.47H85.7899ZM104.36 93.47V78.85H119.93V93.47H104.36Z" fill="#FF5F46"/>
+</svg></div><div><div class="name">Training set</div><div class="desc">Point-in-time join: only values known then</div></div></div>
+    <div class="node hero rev" data-t="7900" style="left:1070px;top:383px;width:170px;height:116px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M136 136L256 256M376 136L256 256M256 256L136 376M256 256L376 376" stroke="#FABFBA" stroke-width="28"/><circle cx="256" cy="256" r="62" fill="#FF5F46"/><circle cx="120" cy="120" r="46" fill="#FABFBA"/><circle cx="392" cy="120" r="46" fill="#FABFBA"/><circle cx="120" cy="392" r="46" fill="#FF5F46"/><circle cx="392" cy="392" r="46" fill="#FF5F46"/></svg></div><div><div class="name">Model</div><div class="desc">Logged with its features</div></div></div>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="scene" data-scene="2" data-dur="11500">
+    <div class="stitle rev" data-t="0"><div class="k">Part 2</div><div class="h">At application time: one request</div></div>
+    <svg class="wires" viewBox="0 0 1280 720">
+      <path id="p2v1" class="wire" pathLength="1" d="M 130 297 L 130 317" data-t="1300"/>
+      <path id="p2v2" class="wire" pathLength="1" d="M 190 317 L 190 297" data-t="1700"/>
+      <path id="p2r" class="wire hot" pathLength="1" d="M 290 362 L 690 362" data-t="2600"/>
+      <path id="p2s" class="wire" pathLength="1" d="M 690 412 L 290 412" data-t="8600"/>
+      <path id="p2l" class="wire hot" pathLength="1" d="M 960 265 L 960 300" data-t="4700"/>
+      <text class="wlabel" x="975" y="287" data-t="4900">lookup by customer_id</text>
+      <circle class="pulse" r="5" data-t="4900"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#p2l"/></animateMotion></circle>
+    </svg>
+    <div class="node ext rev" data-t="900" style="left:40px;top:174px;width:250px;height:122px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M256 48L464 160H48L256 48Z" fill="#FF5F46"/><rect x="88" y="184" width="48" height="200" fill="#FABFBA"/><rect x="180" y="184" width="48" height="200" fill="#FABFBA"/><rect x="284" y="184" width="48" height="200" fill="#FABFBA"/><rect x="376" y="184" width="48" height="200" fill="#FABFBA"/><rect x="48" y="400" width="416" height="56" fill="#FF5F46"/></svg></div><div><div class="name">Vendors</div><div class="desc">Credit bureau, open banking, fraud check</div></div></div>
+    <div class="node ext rev" data-t="400" style="left:40px;top:318px;width:250px;height:132px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="136" y="48" width="240" height="416" rx="40" fill="#FABFBA"/><rect x="168" y="104" width="176" height="272" rx="12" fill="#fff"/><rect x="192" y="140" width="128" height="22" rx="11" fill="#FF5F46"/><rect x="192" y="190" width="96" height="22" rx="11" fill="#FABFBA"/><rect x="192" y="240" width="128" height="22" rx="11" fill="#FABFBA"/><rect x="192" y="310" width="128" height="40" rx="12" fill="#FF5F46"/><circle cx="256" cy="420" r="18" fill="#fff"/></svg></div><div><div class="name">Your loan app</div><div class="desc">A customer applies: <b style="color:var(--lava)">amount, term, channel</b>. Your app calls the vendors first.</div></div></div>
+    <div class="node db rev" data-t="4200" style="left:850px;top:148px;width:250px;height:116px">
+      <span class="badge on">always on</span>
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M448 305.954H447.994C419.48 315.543 386.842 321.022 352 321.022C317.158 321.022 284.484 315.543 256.006 305.954H64V203.887H448V305.954ZM160 290.251C125.156 290.251 92.5155 295.961 64 305.953H256C227.52 295.961 194.844 290.251 160 290.251Z" fill="#FABFBA"/>
+<path d="M160.451 327.787C195.132 327.787 227.655 332.986 256.001 342.085H256C284.346 351.184 316.868 356.383 351.549 356.383C385.146 356.383 416.684 351.504 444.426 342.927L447.099 342.085H448V447.999H64V342.085H64.9023C93.2839 332.986 125.771 327.787 160.451 327.787Z" fill="#FF5F46"/>
+<rect x="64" y="64" width="384" height="105.914" fill="#FABFBA"/>
+</svg></div><div><div class="name">Online feature store</div><div class="desc">90-day aggregates per customer</div></div></div>
+    <div class="ep rev" data-t="2200" style="left:690px;top:300px;width:550px;height:262px">
+      <div class="bar"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M125.97 93.0402C131.97 89.5402 136.01 83.0302 136.01 75.5702C136.01 64.4102 126.96 55.3602 115.8 55.3602H108.64C107.69 37.6002 93 23.4902 75 23.4902C57 23.4902 42.31 37.6002 41.36 55.3602H34.2C23.04 55.3602 13.99 64.4102 13.99 75.5702C13.99 86.7302 23.04 95.7802 34.2 95.7802H114.42" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M114.42 95.7803V79.5903H108.97" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M95.89 79.5903H35.58V95.7803" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 95.7803H114.42V111.97H77.05" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M63.8199 111.97H35.58" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 87.6904H44.2" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M52.61 87.6904H87.48" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M99.63 87.6904H103.36" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 103.88H44.2" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M52.61 103.88H71.29" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M83.28 103.88H103.36" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M110.06 66.9204L50.48 126.5" stroke="#FFFFFF" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+</svg>Model Serving endpoint<span class="tag">serverless</span></div>
+      <div class="step rev" data-t="5000"><div class="n">1</div><div class="tx">Look up precomputed features<span>From the online store, by customer_id</span></div><div class="si"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M448 305.954H447.994C419.48 315.543 386.842 321.022 352 321.022C317.158 321.022 284.484 315.543 256.006 305.954H64V203.887H448V305.954ZM160 290.251C125.156 290.251 92.5155 295.961 64 305.953H256C227.52 295.961 194.844 290.251 160 290.251Z" fill="#FABFBA"/>
+<path d="M160.451 327.787C195.132 327.787 227.655 332.986 256.001 342.085H256C284.346 351.184 316.868 356.383 351.549 356.383C385.146 356.383 416.684 351.504 444.426 342.927L447.099 342.085H448V447.999H64V342.085H64.9023C93.2839 332.986 125.771 327.787 160.451 327.787Z" fill="#FF5F46"/>
+<rect x="64" y="64" width="384" height="105.914" fill="#FABFBA"/>
+</svg></div></div>
+      <div class="step rev" data-t="6300"><div class="n">2</div><div class="tx">Run the debt-to-income function<span>Python in Unity Catalog: same code as in training</span></div><div class="si"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M255.38 185.263L194.172 220.632V291.368L255.38 326.737L316.588 291.368V220.632L255.38 185.263Z" fill="#FF5F46"/>
+<path d="M384.434 181.579H454.86L419.462 120.421L384.434 181.579Z" fill="#FF5F46"/>
+<path d="M384.434 330.79L419.831 391.947L455.229 330.79H384.434Z" fill="#FF5F46"/>
+<path d="M219.98 466H290.407L255.009 404.842L219.98 466Z" fill="#FF5F46"/>
+<path d="M55.5312 330.79L90.9288 391.947L126.326 330.79H55.5312Z" fill="#FF5F46"/>
+<path d="M55.5312 181.579H125.958L90.5601 120.421L55.5312 181.579Z" fill="#FF5F46"/>
+<path d="M219.98 46L255.378 107.158L290.776 46H219.98Z" fill="#FF5F46"/>
+<path d="M322.487 58.1582L281.559 128.895L352.354 169.79L393.282 99.0529L322.487 58.1582Z" fill="#FABFBA"/>
+<path d="M460.392 215.105H378.535V296.895H460.392V215.105Z" fill="#FABFBA"/>
+<path d="M352.354 342.579L281.559 383.474L322.487 454.211L393.282 413.316L352.354 342.579Z" fill="#FABFBA"/>
+<path d="M158.038 342.579L117.109 413.316L187.905 454.211L228.833 383.474L158.038 342.579Z" fill="#FABFBA"/>
+<path d="M131.857 215.105H50V296.895H131.857V215.105Z" fill="#FABFBA"/>
+<path d="M187.905 58.1582L117.109 99.0529L158.038 169.79L228.833 128.895L187.905 58.1582Z" fill="#FABFBA"/>
+</svg></div></div>
+      <div class="step rev" data-t="7500"><div class="n">3</div><div class="tx">Score with the model<span>Returns the risk score</span></div><div class="si"><svg viewBox="0 0 512 512" fill="none"><path d="M136 136L256 256M376 136L256 256M256 256L136 376M256 256L376 376" stroke="#FABFBA" stroke-width="28"/><circle cx="256" cy="256" r="62" fill="#FF5F46"/><circle cx="120" cy="120" r="46" fill="#FABFBA"/><circle cx="392" cy="120" r="46" fill="#FABFBA"/><circle cx="120" cy="392" r="46" fill="#FF5F46"/><circle cx="392" cy="392" r="46" fill="#FF5F46"/></svg></div></div>
+    </div>
+    <div class="chip rev" data-t="2700" style="left:318px;top:320px"><code>customer_id</code> + amount, term + bureau score</div>
+    <div class="env req rev" data-t="3000" style="left:292px;top:349px;--dx:372px"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#fff" stroke-width="2"/><path d="M4 7l8 6 8-6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="chip dark rev" data-t="8700" style="left:405px;top:424px">risk score <code>0.029</code></div>
+    <div class="env res rev" data-t="8900" style="left:664px;top:399px;--dx:-372px"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#fff" stroke-width="2"/><path d="M4 7l8 6 8-6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>
+  </section>
+
+
+  <!-- ============ PART 2b: PRECOMPUTED FEATURES (ZOOM-IN) ============ -->
+  <section class="scene" data-scene="2b" data-dur="14500">
+    <div class="stitle rev" data-t="0"><div class="k">Part 2b</div><div class="h">Precomputed features: one lookup, step by step</div></div>
+    <svg class="wires" viewBox="0 0 1280 720">
+      <path id="pz1" class="wire hot" pathLength="1" d="M 292 236 L 328 236" data-t="2600"/>
+      <path id="pz2" class="wire" pathLength="1" d="M 652 270 C 668 270, 668 312, 688 312" data-t="5000"/>
+      <path id="pz3" class="wire hot" pathLength="1" d="M 165 432 L 165 480 L 836 480 L 836 432" data-t="5000"/>
+      <text class="wlabel" x="480" y="500" text-anchor="middle" data-t="5200">amount and term, from the request</text>
+      <path id="pz4" class="wire hot" pathLength="1" d="M 984 300 L 1012 300" data-t="7200"/>
+      <circle class="pulse" r="5" data-t="2800"><animateMotion dur="0.9s" repeatCount="indefinite" begin="indefinite"><mpath href="#pz1"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="5300"><animateMotion dur="2.2s" repeatCount="indefinite" begin="indefinite"><mpath href="#pz3"/></animateMotion></circle>
+    </svg>
+
+    <div class="zc rev" data-t="300" style="left:40px;top:175px;width:252px;height:257px;border-top-color:var(--line2)">
+      <div class="zh"><svg viewBox="0 0 512 512" fill="none"><rect x="136" y="48" width="240" height="416" rx="40" fill="#FABFBA"/><rect x="168" y="104" width="176" height="272" rx="12" fill="#fff"/><rect x="192" y="140" width="128" height="22" rx="11" fill="#FF5F46"/><rect x="192" y="190" width="96" height="22" rx="11" fill="#FABFBA"/><rect x="192" y="240" width="128" height="22" rx="11" fill="#FABFBA"/><rect x="192" y="310" width="128" height="40" rx="12" fill="#FF5F46"/><circle cx="256" cy="420" r="18" fill="#fff"/></svg>Request</div>
+      <div class="zs">what your app sends</div>
+      <div class="kv mk" data-t="1600"><span>customer_id</span><b>"C00042"</b></div>
+      <div class="kv mk" data-t="5000"><span>requested_amount</span><b>1200.0</b></div>
+      <div class="kv mk" data-t="5000"><span>term_months</span><b>12</b></div>
+      <div class="kv"><span>channel</span><b>"app"</b></div>
+      <div class="kv"><span>bureau_score</span><b>688</b></div>
+    </div>
+
+    <div class="zc rev" data-t="2600" style="left:328px;top:175px;width:324px;height:280px;border-top-color:var(--lava)">
+      <div class="zh"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M448 305.954H447.994C419.48 315.543 386.842 321.022 352 321.022C317.158 321.022 284.484 315.543 256.006 305.954H64V203.887H448V305.954ZM160 290.251C125.156 290.251 92.5155 295.961 64 305.953H256C227.52 295.961 194.844 290.251 160 290.251Z" fill="#FABFBA"/>
+<path d="M160.451 327.787C195.132 327.787 227.655 332.986 256.001 342.085H256C284.346 351.184 316.868 356.383 351.549 356.383C385.146 356.383 416.684 351.504 444.426 342.927L447.099 342.085H448V447.999H64V342.085H64.9023C93.2839 332.986 125.771 327.787 160.451 327.787Z" fill="#FF5F46"/>
+<rect x="64" y="64" width="384" height="105.914" fill="#FABFBA"/>
+</svg>Online store returns</div>
+      <div class="zs">lookup by customer_id = "C00042", latest snapshot (Oct 20)</div>
+      <div class="kv mk2 rev" data-t="3000"><span>avg_monthly_income_90d</span><b>2206.65</b></div>
+      <div class="kv rev" data-t="3250"><span>total_spend_90d</span><b>7323.71</b></div>
+      <div class="kv rev" data-t="3500"><span>txn_count_90d</span><b>74</b></div>
+      <div class="kv rev" data-t="3750"><span>spend_volatility_90d</span><b>191.04</b></div>
+      <div class="kv rev" data-t="4000"><span>late_payments_90d</span><b>0</b></div>
+      <div class="kv rev" data-t="4250"><span>spend_to_income_90d</span><b>1.106</b></div>
+    </div>
+
+    <div class="zc rev" data-t="5000" style="left:688px;top:175px;width:296px;height:257px;border-top-color:var(--uc)">
+      <div class="zh"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M255.38 185.263L194.172 220.632V291.368L255.38 326.737L316.588 291.368V220.632L255.38 185.263Z" fill="#FF5F46"/>
+<path d="M384.434 181.579H454.86L419.462 120.421L384.434 181.579Z" fill="#FF5F46"/>
+<path d="M384.434 330.79L419.831 391.947L455.229 330.79H384.434Z" fill="#FF5F46"/>
+<path d="M219.98 466H290.407L255.009 404.842L219.98 466Z" fill="#FF5F46"/>
+<path d="M55.5312 330.79L90.9288 391.947L126.326 330.79H55.5312Z" fill="#FF5F46"/>
+<path d="M55.5312 181.579H125.958L90.5601 120.421L55.5312 181.579Z" fill="#FF5F46"/>
+<path d="M219.98 46L255.378 107.158L290.776 46H219.98Z" fill="#FF5F46"/>
+<path d="M322.487 58.1582L281.559 128.895L352.354 169.79L393.282 99.0529L322.487 58.1582Z" fill="#FABFBA"/>
+<path d="M460.392 215.105H378.535V296.895H460.392V215.105Z" fill="#FABFBA"/>
+<path d="M352.354 342.579L281.559 383.474L322.487 454.211L393.282 413.316L352.354 342.579Z" fill="#FABFBA"/>
+<path d="M158.038 342.579L117.109 413.316L187.905 454.211L228.833 383.474L158.038 342.579Z" fill="#FABFBA"/>
+<path d="M131.857 215.105H50V296.895H131.857V215.105Z" fill="#FABFBA"/>
+<path d="M187.905 58.1582L117.109 99.0529L158.038 169.79L228.833 128.895L187.905 58.1582Z" fill="#FABFBA"/>
+</svg>debt_to_income()</div>
+      <div class="zs">Python function in Unity Catalog</div>
+      <div class="kv"><span>requested_amount</span><b>1200.0<span class="tagsrc req">request</span></b></div>
+      <div class="kv"><span>term_months</span><b>12<span class="tagsrc req">request</span></b></div>
+      <div class="kv"><span>avg_monthly_income</span><b>2206.65<span class="tagsrc lk">lookup</span></b></div>
+      <div class="formula rev" data-t="5900">1200 / 12 / 2206.65</div>
+      <div class="bigv rev" data-t="6400">= 0.045</div>
+    </div>
+
+    <div class="zc rev" data-t="7200" style="left:1012px;top:175px;width:228px;height:280px;border-top-color:var(--navy)">
+      <div class="zh"><svg viewBox="0 0 512 512" fill="none"><path d="M136 136L256 256M376 136L256 256M256 256L136 376M256 256L376 376" stroke="#FABFBA" stroke-width="28"/><circle cx="256" cy="256" r="62" fill="#FF5F46"/><circle cx="120" cy="120" r="46" fill="#FABFBA"/><circle cx="392" cy="120" r="46" fill="#FABFBA"/><circle cx="120" cy="392" r="46" fill="#FF5F46"/><circle cx="392" cy="392" r="46" fill="#FF5F46"/></svg>Model</div>
+      <div class="zs">11 inputs</div>
+      <div class="kv"><span>from the request</span><b>4</b></div>
+      <div class="kv"><span>looked up</span><b>6</b></div>
+      <div class="kv"><span>computed</span><b>1</b></div>
+      <div class="rev" data-t="8400" style="margin-top:14px;font-size:12px;color:var(--muted)">probability of default</div>
+      <div class="bigv rev" data-t="8400">0.029</div>
+      <div class="rev" data-t="9200" style="font-size:12px;color:var(--muted);margin-top:4px">returned with the features it saw</div>
+    </div>
+
+    <svg class="wires" viewBox="0 0 1280 720">
+      <path id="pz5" class="wire hot" pathLength="1" d="M 1126 455 L 1126 492" data-t="9800"/>
+    </svg>
+    <div class="dec rev" data-t="10000" style="left:688px;top:492px;width:552px;height:124px">
+      <div class="row"><span class="lbl">Decision: credit policy</span><span class="ok rev" data-t="11000">APPROVED</span></div>
+      <div class="zones">
+        <i style="width:33.3%;background:#BDE7D6"></i><i style="width:33.3%;background:#FFE2A8"></i><i style="width:33.4%;background:#FFC7BE"></i>
+        <div class="marker rev" data-t="10600" style="left:9.7%"><b>2.9%</b></div>
+      </div>
+      <div class="zticks"><span>approve, below 10%</span><span>review, 10% to 20%</span><span style="text-align:right">decline, above 20%</span></div>
+      <div class="note" style="margin-top:4px">Example policy for the demo. Each lender sets its own thresholds.</div>
+    </div>
+  </section>
+
+  <!-- ============ PART 3 ============ -->
+  <section class="scene" data-scene="3" data-dur="11000">
+    <div class="stitle rev" data-t="0"><div class="k">Part 3</div><div class="h">After the decision: learn and monitor</div></div>
+    <svg class="wires" viewBox="0 0 1280 720">
+      <path id="p3a" class="wire" pathLength="1" d="M 250 345 L 310 345" data-t="900"/>
+      <path id="p3b" class="wire hot" pathLength="1" d="M 520 330 C 560 330, 550 250, 600 250" data-t="3000"/>
+      <path id="p3c" class="wire" pathLength="1" d="M 810 250 L 860 250" data-t="4400"/>
+      <path id="p3d" class="wire" pathLength="1" d="M 520 360 C 560 360, 550 440, 600 440" data-t="6200"/>
+      <path id="p3e" class="wire" pathLength="1" d="M 415 508 L 415 490 C 415 462, 560 470, 600 455" data-t="6900"/>
+      <path id="p3f" class="wire hot" pathLength="1" d="M 810 440 L 860 440" data-t="8200"/>
+      <circle class="pulse" r="5" data-t="1300"><animateMotion dur="1.2s" repeatCount="indefinite" begin="indefinite"><mpath href="#p3a"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="3400"><animateMotion dur="1.5s" repeatCount="indefinite" begin="indefinite"><mpath href="#p3b"/></animateMotion></circle>
+      <circle class="pulse" r="5" data-t="6600"><animateMotion dur="1.5s" repeatCount="indefinite" begin="indefinite"><mpath href="#p3d"/></animateMotion></circle>
+    </svg>
+    <div class="node hero rev" data-t="400" style="left:40px;top:288px;width:210px;height:116px">
+      <div class="ico"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M125.97 93.0402C131.97 89.5402 136.01 83.0302 136.01 75.5702C136.01 64.4102 126.96 55.3602 115.8 55.3602H108.64C107.69 37.6002 93 23.4902 75 23.4902C57 23.4902 42.31 37.6002 41.36 55.3602H34.2C23.04 55.3602 13.99 64.4102 13.99 75.5702C13.99 86.7302 23.04 95.7802 34.2 95.7802H114.42" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M114.42 95.7803V79.5903H108.97" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M95.89 79.5903H35.58V95.7803" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 95.7803H114.42V111.97H77.05" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M63.8199 111.97H35.58" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 87.6904H44.2" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M52.61 87.6904H87.48" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M99.63 87.6904H103.36" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M42.8 103.88H44.2" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M52.61 103.88H71.29" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M83.28 103.88H103.36" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+<path d="M110.06 66.9204L50.48 126.5" stroke="#FF5F46" stroke-width="3" stroke-miterlimit="3" stroke-linecap="square"/>
+</svg></div><div><div class="name">Model Serving endpoint</div><div class="desc">Every scoring request</div></div></div>
+    <div class="node db rev" data-t="1300" style="left:310px;top:288px;width:210px;height:116px">
+      <div class="ico"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M126.77 25.11H23.23C21.2868 25.1126 19.4239 25.8857 18.0499 27.2598C16.6758 28.6339 15.9027 30.4968 15.9 32.44V47H122.45V44H18.9V32.44C18.9 31.2916 19.3562 30.1902 20.1683 29.3782C20.9803 28.5662 22.0816 28.11 23.23 28.11H126.77C127.918 28.11 129.02 28.5662 129.832 29.3782C130.644 30.1902 131.1 31.2916 131.1 32.44V117.56C131.1 118.708 130.644 119.81 129.832 120.622C129.02 121.434 127.918 121.89 126.77 121.89H23.23C22.0816 121.89 20.9803 121.434 20.1683 120.622C19.3562 119.81 18.9 118.708 18.9 117.56V58.26H15.9V117.56C15.9027 119.503 16.6758 121.366 18.0499 122.74C19.4239 124.114 21.2868 124.887 23.23 124.89H126.77C128.713 124.887 130.576 124.114 131.95 122.74C133.324 121.366 134.097 119.503 134.1 117.56V32.44C134.097 30.4968 133.324 28.6339 131.95 27.2598C130.576 25.8857 128.713 25.1126 126.77 25.11Z" fill="#FF5F46"/>
+<path d="M25.6 36.18C25.602 36.6364 25.7391 37.0821 25.9942 37.4606C26.2492 37.8392 26.6106 38.1337 27.0329 38.307C27.4552 38.4803 27.9193 38.5246 28.3668 38.4344C28.8142 38.3441 29.2249 38.1233 29.5469 37.7999C29.869 37.4764 30.088 37.0648 30.1763 36.617C30.2646 36.1692 30.2183 35.7052 30.0432 35.2837C29.8681 34.8622 29.572 34.502 29.1923 34.2486C28.8127 33.9952 28.3664 33.86 27.91 33.86C27.6058 33.86 27.3046 33.9201 27.0237 34.0368C26.7428 34.1535 26.4877 34.3245 26.273 34.5401C26.0584 34.7557 25.8885 35.0115 25.773 35.2929C25.6575 35.5743 25.5987 35.8758 25.6 36.18Z" fill="#FF5F46"/>
+<path d="M34.51 36.18C34.51 36.6388 34.6461 37.0874 34.901 37.4689C35.1559 37.8504 35.5183 38.1478 35.9422 38.3234C36.3661 38.499 36.8326 38.5449 37.2826 38.4554C37.7327 38.3659 38.146 38.1449 38.4705 37.8205C38.795 37.496 39.0159 37.0826 39.1054 36.6326C39.195 36.1826 39.149 35.7161 38.9734 35.2922C38.7978 34.8682 38.5005 34.5059 38.1189 34.251C37.7374 33.9961 37.2889 33.86 36.83 33.86C36.2147 33.86 35.6246 34.1044 35.1895 34.5395C34.7544 34.9746 34.51 35.5647 34.51 36.18Z" fill="#FF5F46"/>
+<path d="M43.4301 36.18C43.4301 36.6393 43.5664 37.0882 43.8218 37.47C44.0771 37.8517 44.44 38.149 44.8646 38.3243C45.2891 38.4996 45.756 38.545 46.2064 38.4547C46.6567 38.3643 47.07 38.1424 47.3941 37.8169C47.7181 37.4915 47.9383 37.0771 48.0267 36.6265C48.1151 36.1758 48.0677 35.709 47.8906 35.2852C47.7134 34.8615 47.4145 34.4998 47.0317 34.2461C46.6489 33.9924 46.1993 33.858 45.7401 33.86C45.1265 33.8627 44.5389 34.1082 44.106 34.543C43.6731 34.9778 43.43 35.5664 43.4301 36.18Z" fill="#FF5F46"/>
+<path d="M122.93 112.58V58.24H27.0699V112.58H30.0699V96.47H45.6399V112.58H48.6399V96.47H64.2199V112.58H67.2199V96.47H82.7899V112.58H85.7899V96.47H101.36V112.58H104.36V96.47H119.93V112.58H122.93ZM119.93 75.85H104.36V61.24H119.93V75.85ZM67.2199 61.24H82.7899V75.85H67.2199V61.24ZM64.2199 75.85H48.6399V61.24H64.2199V75.85ZM85.7899 61.24H101.36V75.85H85.7899V61.24ZM45.6399 61.24V75.85H30.0699V61.24H45.6399ZM30.0699 93.47V78.85H45.6399V93.47H30.0699ZM48.6399 93.47V78.85H64.2199V93.47H48.6399ZM67.2199 93.47V78.85H82.7899V93.47H67.2199ZM85.7899 93.47V78.85H101.36V93.47H85.7899ZM104.36 93.47V78.85H119.93V93.47H104.36Z" fill="#FF5F46"/>
+</svg></div><div><div class="name">Inference table</div><div class="desc">Requests and scores, logged to Delta</div></div></div>
+    <div class="node db rev" data-t="3300" style="left:600px;top:188px;width:210px;height:124px">
+      <span class="badge">on schedule</span>
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="48" y="80" width="416" height="352" rx="36" fill="#FABFBA"/><path d="M96 300H176L216 184L272 364L320 240L352 300H416" stroke="#FF5F46" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="name">Data profiling</div><div class="desc">Live traffic compared with the training data</div></div></div>
+    <div class="node db rev" data-t="4700" style="left:860px;top:180px;width:380px;height:140px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M447.936 64.0002L275.936 64.0002L275.936 208L447.936 208L447.936 64.0002Z" fill="#FABFBA"/>
+<path d="M275.998 448L447.998 448L447.998 240L275.998 240L275.998 448Z" fill="#FF5F46"/>
+<path d="M235.998 63.9998L63.9981 63.9998L63.9981 304L235.998 304L235.998 63.9998Z" fill="#FF5F46"/>
+<path d="M64.0664 448L236.066 448L236.066 338L64.0664 338L64.0664 448Z" fill="#FABFBA"/>
+</svg></div><div style="flex:1"><div class="name">Drift dashboard and alerts</div><div class="desc">Created automatically, per feature</div>
+        <div class="chart"><i class="base" style="--h:16px"></i><i style="--h:18px"></i><i class="base" style="--h:20px"></i><i style="--h:21px"></i><i class="base" style="--h:17px"></i><i class="hi" style="--h:32px"></i><i class="base" style="--h:18px"></i><i class="hi" style="--h:30px"></i></div></div></div>
+    <div class="node ext rev" data-t="6600" style="left:310px;top:508px;width:210px;height:100px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="96" y="56" width="320" height="400" rx="32" fill="#FABFBA"/><path d="M150 170L190 210L262 138" stroke="#FF5F46" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/><rect x="290" y="160" width="80" height="26" rx="13" fill="#fff"/><path d="M160 300L220 360M220 300L160 360" stroke="#FF5F46" stroke-width="30" stroke-linecap="round"/><rect x="290" y="318" width="80" height="26" rx="13" fill="#fff"/></svg></div><div><div class="name">Outcomes</div><div class="desc">Repaid or defaulted</div></div></div>
+    <div class="node db rev" data-t="6300" style="left:600px;top:383px;width:210px;height:124px">
+      <div class="ico"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M126.77 25.11H23.23C21.2868 25.1126 19.4239 25.8857 18.0499 27.2598C16.6758 28.6339 15.9027 30.4968 15.9 32.44V47H122.45V44H18.9V32.44C18.9 31.2916 19.3562 30.1902 20.1683 29.3782C20.9803 28.5662 22.0816 28.11 23.23 28.11H126.77C127.918 28.11 129.02 28.5662 129.832 29.3782C130.644 30.1902 131.1 31.2916 131.1 32.44V117.56C131.1 118.708 130.644 119.81 129.832 120.622C129.02 121.434 127.918 121.89 126.77 121.89H23.23C22.0816 121.89 20.9803 121.434 20.1683 120.622C19.3562 119.81 18.9 118.708 18.9 117.56V58.26H15.9V117.56C15.9027 119.503 16.6758 121.366 18.0499 122.74C19.4239 124.114 21.2868 124.887 23.23 124.89H126.77C128.713 124.887 130.576 124.114 131.95 122.74C133.324 121.366 134.097 119.503 134.1 117.56V32.44C134.097 30.4968 133.324 28.6339 131.95 27.2598C130.576 25.8857 128.713 25.1126 126.77 25.11Z" fill="#FF5F46"/>
+<path d="M25.6 36.18C25.602 36.6364 25.7391 37.0821 25.9942 37.4606C26.2492 37.8392 26.6106 38.1337 27.0329 38.307C27.4552 38.4803 27.9193 38.5246 28.3668 38.4344C28.8142 38.3441 29.2249 38.1233 29.5469 37.7999C29.869 37.4764 30.088 37.0648 30.1763 36.617C30.2646 36.1692 30.2183 35.7052 30.0432 35.2837C29.8681 34.8622 29.572 34.502 29.1923 34.2486C28.8127 33.9952 28.3664 33.86 27.91 33.86C27.6058 33.86 27.3046 33.9201 27.0237 34.0368C26.7428 34.1535 26.4877 34.3245 26.273 34.5401C26.0584 34.7557 25.8885 35.0115 25.773 35.2929C25.6575 35.5743 25.5987 35.8758 25.6 36.18Z" fill="#FF5F46"/>
+<path d="M34.51 36.18C34.51 36.6388 34.6461 37.0874 34.901 37.4689C35.1559 37.8504 35.5183 38.1478 35.9422 38.3234C36.3661 38.499 36.8326 38.5449 37.2826 38.4554C37.7327 38.3659 38.146 38.1449 38.4705 37.8205C38.795 37.496 39.0159 37.0826 39.1054 36.6326C39.195 36.1826 39.149 35.7161 38.9734 35.2922C38.7978 34.8682 38.5005 34.5059 38.1189 34.251C37.7374 33.9961 37.2889 33.86 36.83 33.86C36.2147 33.86 35.6246 34.1044 35.1895 34.5395C34.7544 34.9746 34.51 35.5647 34.51 36.18Z" fill="#FF5F46"/>
+<path d="M43.4301 36.18C43.4301 36.6393 43.5664 37.0882 43.8218 37.47C44.0771 37.8517 44.44 38.149 44.8646 38.3243C45.2891 38.4996 45.756 38.545 46.2064 38.4547C46.6567 38.3643 47.07 38.1424 47.3941 37.8169C47.7181 37.4915 47.9383 37.0771 48.0267 36.6265C48.1151 36.1758 48.0677 35.709 47.8906 35.2852C47.7134 34.8615 47.4145 34.4998 47.0317 34.2461C46.6489 33.9924 46.1993 33.858 45.7401 33.86C45.1265 33.8627 44.5389 34.1082 44.106 34.543C43.6731 34.9778 43.43 35.5664 43.4301 36.18Z" fill="#FF5F46"/>
+<path d="M122.93 112.58V58.24H27.0699V112.58H30.0699V96.47H45.6399V112.58H48.6399V96.47H64.2199V112.58H67.2199V96.47H82.7899V112.58H85.7899V96.47H101.36V112.58H104.36V96.47H119.93V112.58H122.93ZM119.93 75.85H104.36V61.24H119.93V75.85ZM67.2199 61.24H82.7899V75.85H67.2199V61.24ZM64.2199 75.85H48.6399V61.24H64.2199V75.85ZM85.7899 61.24H101.36V75.85H85.7899V61.24ZM45.6399 61.24V75.85H30.0699V61.24H45.6399ZM30.0699 93.47V78.85H45.6399V93.47H30.0699ZM48.6399 93.47V78.85H64.2199V93.47H48.6399ZM67.2199 93.47V78.85H82.7899V93.47H67.2199ZM85.7899 93.47V78.85H101.36V93.47H85.7899ZM104.36 93.47V78.85H119.93V93.47H104.36Z" fill="#FF5F46"/>
+</svg></div><div><div class="name">Next training set</div><div class="desc">Exactly what the model saw, plus the outcome</div></div></div>
+    <div class="node hero rev" data-t="8500" style="left:860px;top:383px;width:380px;height:124px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M136 136L256 256M376 136L256 256M256 256L136 376M256 256L376 376" stroke="#FABFBA" stroke-width="28"/><circle cx="256" cy="256" r="62" fill="#FF5F46"/><circle cx="120" cy="120" r="46" fill="#FABFBA"/><circle cx="392" cy="120" r="46" fill="#FABFBA"/><circle cx="120" cy="392" r="46" fill="#FF5F46"/><circle cx="392" cy="392" r="46" fill="#FF5F46"/></svg></div><div><div class="name">Retrain, log, redeploy</div><div class="desc">Training matches decision time. Back to Part 1.</div></div></div>
+  </section>
+
+  <div class="cap"><div class="bar"></div><div class="txt" id="cap"></div></div>
+  <div class="hint">Space: pause &nbsp; Left/Right: part</div>
+</div></div>
+
+<script>
+const CAPS = {
+  1: [[0, 'Features are computed <b>once, ahead of time</b>, before any application arrives'],
+      [2300, 'A scheduled job turns transactions into features, stored as <b>one table</b> in Unity Catalog'],
+      [4100, 'The same table feeds the <b>online store</b> for real-time lookups...'],
+      [6100, '...and <b>training</b>, with a point-in-time join and the model logged with its features']],
+  3: [[0, 'Zoom in on <b>one request</b>: what the endpoint does with customer_id'],
+      [1600, 'The request says <b>who</b> is applying and <b>what</b> they ask for'],
+      [2600, 'Lookup by customer_id: the online store returns the <b>latest precomputed features</b>'],
+      [5000, 'The function takes <b>two values from the request</b> and <b>one from the lookup</b>'],
+      [7200, 'Request fields, looked-up features and debt-to-income go into the <b>model</b>'],
+      [8400, 'The score comes back <b>together with the features it saw</b>'],
+      [9800, 'Your credit policy decides: <b>2.9% is below 10%, so the application is approved</b>']],
+  2: [[0, 'When a customer applies, your app sends <b>one request</b>'],
+      [900, 'Your app calls the bureau, open banking and fraud services <b>first</b>'],
+      [2600, 'Then it sends <b>customer_id + application fields + vendor results</b>'],
+      [4700, 'The endpoint looks up the <b>precomputed features</b> for this customer'],
+      [6300, 'It runs the debt-to-income function: <b>the same code</b> used in training'],
+      [7500, 'It scores with the model and <b>returns the result</b> to your app']],
+  4: [[0, 'Every decision is <b>recorded</b>, so the next model learns from it'],
+      [1300, 'Each request and score is logged to an <b>inference table</b> in Delta'],
+      [2900, 'Data profiling compares live traffic with the <b>training data</b> and flags drift'],
+      [6200, 'Logged requests plus <b>real outcomes</b> become the next training set'],
+      [8100, 'So training matches <b>exactly what was known</b> at decision time']],
+  0: [[0, 'Only the <b>online store</b> runs all the time. Everything else runs on schedule or per request']]
+};
+const scenes = [...document.querySelectorAll('.scene')];
+const capEl = document.getElementById('cap');
+const MODE = new URLSearchParams(location.search).get('mode') || 'auto';
+let cur = -1, step = 0, timers = [], paused = false;
+
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+function setCap(html, instant){
+  if (instant){ capEl.innerHTML = html; capEl.style.opacity = 1; return; }
+  capEl.style.opacity = 0; setTimeout(() => { capEl.innerHTML = html; capEl.style.opacity = 1; }, 250);
+}
+function reveal(el){
+  el.classList.add('on');
+  if (el.tagName === 'path' && el.classList.contains('wire')) el.setAttribute('marker-end', 'url(#' + (el.classList.contains('hot') ? 'ah' : 'ag') + ')');
+  const am = el.querySelector && el.querySelector('animateMotion');
+  if (am) am.beginElement();
+}
+function reset(sc){
+  sc.querySelectorAll('.rev,.wire,.wlabel,.pulse,.mk,.mk2').forEach(e => { e.classList.remove('on'); if (e.tagName === 'path') e.removeAttribute('marker-end'); });
+}
+function pills(i){
+  document.querySelectorAll('.pill').forEach(p => {
+    const n = +p.dataset.p; p.classList.toggle('cur', n === i); p.classList.toggle('done', n < i);
+  });
+}
+function enter(i){
+  clearTimers();
+  scenes.forEach(s => s.classList.remove('show'));
+  const sc = scenes[i]; reset(sc); sc.classList.add('show'); cur = i; pills(i);
+  return sc;
+}
+function bounds(i){ return (CAPS[i] || [[0, '']]).map(c => c[0]); }
+function stepEls(sc, i, k){
+  const b = bounds(i), lo = b[k], hi = k + 1 < b.length ? b[k + 1] : Infinity;
+  return [...sc.querySelectorAll('[data-t]')].filter(e => +e.dataset.t >= lo && +e.dataset.t < hi).map(e => [e, +e.dataset.t - lo]);
+}
+
+/* auto mode: timed playback, loops */
+function show(i, staticMode){
+  const sc = enter(i);
+  const els = [...sc.querySelectorAll('[data-t]')];
+  if (staticMode){ els.forEach(reveal); const c = CAPS[i]; capEl.innerHTML = c[c.length-1][1]; return; }
+  els.forEach(e => timers.push(setTimeout(() => reveal(e), +e.dataset.t + 200)));
+  (CAPS[i] || []).forEach(([t, html]) => timers.push(setTimeout(() => setCap(html), t)));
+  timers.push(setTimeout(() => { if (!paused) show((i + 1) % scenes.length); }, +sc.dataset.dur));
+}
+
+/* presenter mode: one key press = one step */
+function present(i, k, animate){
+  const sc = (i !== cur || !animate) ? enter(i) : scenes[i];
+  clearTimers(); step = k;
+  if (!animate){
+    for (let j = 0; j <= k; j++) stepEls(sc, i, j).forEach(([e]) => reveal(e));
+  } else {
+    // finish earlier steps instantly (a fast key press must not leave anything hidden), then animate this step
+    for (let j = 0; j < k; j++) stepEls(sc, i, j).forEach(([e]) => { if (!e.classList.contains('on')) reveal(e); });
+    stepEls(sc, i, k).forEach(([e, d]) => timers.push(setTimeout(() => reveal(e), d + 150)));
+  }
+  setCap(CAPS[i][k][1], !animate);
+  progress();
+}
+function next(){
+  if (step + 1 < bounds(cur).length) present(cur, step + 1, true);
+  else if (cur + 1 < scenes.length) { enter(cur + 1); present(cur, 0, true); }
+}
+function prev(){
+  if (step > 0) present(cur, step - 1, false);
+  else if (cur > 0) present(cur - 1, bounds(cur - 1).length - 1, false);
+}
+function progress(){
+  const h = document.querySelector('.hint'); if (!h || MODE !== 'present') return;
+  h.textContent = (['Overview', 'Part 1', 'Part 2', 'Part 2b', 'Part 3'][cur]) + '  ' + (step + 1) + '/' + bounds(cur).length;
+}
+
+// arrow markers
+const svgns = 'http://www.w3.org/2000/svg';
+const defs = document.createElementNS(svgns, 'svg'); defs.setAttribute('width', 0); defs.setAttribute('height', 0); defs.style.position = 'absolute';
+defs.innerHTML = '<defs><marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#CDD5DB"/></marker><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#FF3621"/></marker></defs>';
+document.body.prepend(defs);
+
+function fit(){ const s = Math.min(innerWidth / 1280, innerHeight / 720); document.getElementById('stage').style.transform = 'scale(' + s + ')'; }
+addEventListener('resize', fit); fit();
+addEventListener('keydown', e => {
+  if (MODE === 'present'){
+    if (['ArrowRight','Space','PageDown','Enter','ArrowDown'].includes(e.code)){ e.preventDefault(); next(); }
+    if (['ArrowLeft','PageUp','Backspace','ArrowUp'].includes(e.code)){ e.preventDefault(); prev(); }
+    if (/^Digit[0-4]$/.test(e.code)) { const i = +e.code.slice(5); enter(i); present(i, bounds(i).length - 1, false); }
+    if (e.code === 'Home') { enter(0); present(0, 0, true); }
+    if (e.code === 'KeyR') { const i = cur; enter(i); present(i, 0, true); }
+    return;
+  }
+  if (e.code === 'Space'){ paused = !paused; if (!paused) show(cur); }
+  if (e.code === 'ArrowRight') show((cur + 1) % scenes.length);
+  if (e.code === 'ArrowLeft') show((cur - 1 + scenes.length) % scenes.length);
+  if (/^Digit[0-4]$/.test(e.code)) show(+e.code.slice(5));
+});
+if (MODE === 'present') addEventListener('click', next);
+// links open in a new tab without advancing the presentation
+document.querySelectorAll('a.uclink').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
+// overview cards open their part
+document.querySelectorAll('.blk[data-go]').forEach(c => c.addEventListener('click', e => {
+  e.stopPropagation();
+  const i = +c.dataset.go;
+  if (MODE === 'present') { enter(i); present(i, bounds(i).length - 1, false); } else { paused = true; show(i, true); }
+}));
+// tabs: click to open a part immediately, fully shown
+document.querySelectorAll('.pill').forEach(p => p.addEventListener('click', e => {
+  e.stopPropagation();
+  const i = +p.dataset.p;
+  if (MODE === 'present') { enter(i); present(i, bounds(i).length - 1, false); }
+  else { paused = true; show(i, true); }
+}));
+const q = new URLSearchParams(location.search);
+if (q.has('nohint')) document.querySelector('.hint').style.display = 'none';
+const first = q.has('scene') ? +q.get('scene') : 0;
+if (MODE === 'present') { enter(first); present(first, 0, true); }
+else show(first, q.has('static'));
+</script>
+</body>
+</html>

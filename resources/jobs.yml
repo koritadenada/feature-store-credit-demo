@@ -1,0 +1,74 @@
+resources:
+  jobs:
+    setup:
+      name: feature-store-credit-setup
+      description: Builds the demo end to end, from synthetic data to a live scoring endpoint (steps 1 to 7).
+      tags:
+        demo: feature-store-credit
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: endpoint
+          default: ${var.endpoint}
+        - name: online_store
+          default: ${var.online_store}
+        - name: rebuild
+          default: "yes"
+        - name: register
+          default: "yes"
+      tasks:
+        - task_key: generate_data
+          notebook_task:
+            notebook_path: ../src/01_generate_data.py
+        - task_key: feature_table
+          depends_on: [{task_key: generate_data}]
+          notebook_task:
+            notebook_path: ../src/02_feature_table.py
+        - task_key: online_store
+          depends_on: [{task_key: feature_table}]
+          notebook_task:
+            notebook_path: ../src/03_online_store.py
+        - task_key: function
+          depends_on: [{task_key: feature_table}]
+          notebook_task:
+            notebook_path: ../src/04_function.py
+        - task_key: train
+          depends_on: [{task_key: function}]
+          notebook_task:
+            notebook_path: ../src/05_train.py
+        - task_key: serve
+          depends_on: [{task_key: train}, {task_key: online_store}]
+          timeout_seconds: 3600
+          notebook_task:
+            notebook_path: ../src/06_serve.py
+        - task_key: score
+          depends_on: [{task_key: serve}]
+          notebook_task:
+            notebook_path: ../src/07_score.py
+        - task_key: backfill_history
+          depends_on: [{task_key: score}]
+          notebook_task:
+            notebook_path: ../src/07b_backfill_history.py
+
+    feedback:
+      name: feature-store-credit-feedback
+      description: Unpacks the inference table, refreshes drift monitoring and builds the next training set (steps 8 and 9).
+      tags:
+        demo: feature-store-credit
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: endpoint
+          default: ${var.endpoint}
+      tasks:
+        - task_key: monitoring
+          notebook_task:
+            notebook_path: ../src/08_monitoring.py
+        - task_key: next_training_set
+          depends_on: [{task_key: monitoring}]
+          notebook_task:
+            notebook_path: ../src/09_next_training_set.py
