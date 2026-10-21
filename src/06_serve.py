@@ -35,8 +35,15 @@ from databricks.sdk.service.serving import (
 w = WorkspaceClient()
 version = mlflow.MlflowClient(registry_uri="databricks-uc").get_model_version_by_alias(MODEL_NAME, "champion").version
 
+# Scale to zero is on/off only: Model Serving has no setting for the idle time.
+# When on, the endpoint scales to zero after 30 minutes without requests (fixed), and the next request is a
+# cold start (usually 10-20 seconds, sometimes minutes, no SLA). Not recommended for production.
+SCALE_TO_ZERO = True    # demo: save cost between sessions
+
 served = ServedEntityInput(
-    entity_name=MODEL_NAME, entity_version=str(version), workload_size="Small", scale_to_zero_enabled=True,
+    entity_name=MODEL_NAME, entity_version=str(version),
+    workload_size="Small",                  # Small = 0-4 concurrent requests; Medium 8-16, Large 16-64
+    scale_to_zero_enabled=SCALE_TO_ZERO,
 )
 gateway = AiGatewayConfig(inference_table_config=AiGatewayInferenceTableConfig(
     catalog_name=CATALOG, schema_name=SCHEMA, table_name_prefix="credit_risk", enabled=True))

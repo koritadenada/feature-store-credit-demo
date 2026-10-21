@@ -119,7 +119,7 @@
   .cap .txt b { color:var(--lava); font-weight:700; }
 
   /* overview blocks */
-  .blk { position:absolute; top:186px; width:360px; height:300px; border-radius:16px; background:#fff; border:1px solid var(--line);
+  .blk { position:absolute; top:186px; width:360px; height:318px; border-radius:16px; background:#fff; border:1px solid var(--line);
     box-shadow:0 4px 16px rgba(27,49,57,.08); padding:18px 20px; }
   .blk { cursor:pointer; transition:box-shadow .2s, border-color .2s; }
   .blk:hover { border-color:var(--line2); box-shadow:0 6px 20px rgba(27,49,57,.14); }
@@ -202,8 +202,8 @@
     <svg class="wires" viewBox="0 0 1280 720">
       <path id="p4a" class="wire hot" pathLength="1" d="M 400 336 L 460 336" data-t="1100"/>
       <path id="p4b" class="wire hot" pathLength="1" d="M 820 336 L 880 336" data-t="2000"/>
-      <path id="p4c" class="wire" pathLength="1" d="M 1060 488 L 1060 520 C 1060 556, 1010 562, 960 562 L 320 562 C 270 562, 220 556, 220 520 L 220 488" data-t="2900"/>
-      <text class="wlabel" x="640" y="586" text-anchor="middle" data-t="3100">retrain with what the model saw</text>
+      <path id="p4c" class="wire" pathLength="1" d="M 1060 506 L 1060 532 C 1060 566, 1010 572, 960 572 L 320 572 C 270 572, 220 566, 220 532 L 220 506" data-t="2900"/>
+      <text class="wlabel" x="640" y="594" text-anchor="middle" data-t="3100">retrain with what the model saw</text>
       <circle class="pulse" r="5" data-t="1400"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#p4a"/></animateMotion></circle>
       <circle class="pulse" r="5" data-t="2300"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#p4b"/></animateMotion></circle>
       <circle class="pulse" r="5" data-t="3300"><animateMotion dur="3.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#p4c"/></animateMotion></circle>
@@ -213,7 +213,8 @@
       <div class="icons">{{I_JOBS}}{{I_UC}}{{I_LAKEBASE}}</div>
       <div class="run"><div class="lbl">What runs</div>
         <div><span>Feature job</span><b>on schedule</b></div>
-        <div><span>Online feature store</span><b class="always">always on</b></div></div>
+        <div><span>Online feature store</span><b class="always">always on</b></div>
+        <div><span>Smallest we ran</span><b>0.5 to 1 CU</b></div></div>
     </div>
     <div class="blk rev" data-t="1200" data-go="2" style="left:460px">
       <div class="num">2</div><div class="bt">At application time</div><div class="bd">One request: look up, run the function, score</div>
