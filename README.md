@@ -18,6 +18,7 @@ Everything is a Declarative Automation Bundle, so it can be redeployed to any wo
 | 7 | `src/07_score.py` | One application scored live, then a stream of 300 (a third of them shifted, so there is drift to find) |
 | 7b | `src/07b_backfill_history.py` | Simulated two weeks of traffic with growing drift, scored by the live endpoint with point-in-time features, so the dashboard shows a trend |
 | 8 | `src/08_monitoring.py` | Inference table unpacked to one row per application; data profiling against the training baseline, with an auto-generated dashboard |
+| 8b | `scripts/fix_monitor_dashboard.py` | Adapts the auto-generated dashboard to a 0/1 prediction and label (run once after step 8 creates it) |
 | 9 | `src/09_next_training_set.py` | Logged requests joined with outcomes: the next training set matches what was known at decision time |
 | 10 | `src/10_cost.py` | What the demo cost, from `system.billing.usage` and list prices |
 

@@ -122,12 +122,15 @@ profile = MonitorInferenceLog(                       # "inference" profile: buil
     granularities=["1 day"],                         # one window per day
 )
 # every other column (requested_amount, income, bureau score, ...) is profiled as a feature: stats + drift
+# every metric is also computed per slice: per channel (app, web, partner) for the dashboard's slice filters,
+# and partner shop yes/no for the fairness section (fairness compares a true group with a false group)
+SLICES = ["channel", "channel = 'partner'"]
 
 # --- 3. Create the monitor, or update it if it already exists ------------------------------------------------
 try:
     w.quality_monitors.get(table_name=LOG_TABLE)     # raises if there is no monitor yet
     w.quality_monitors.update(table_name=LOG_TABLE, output_schema_name=f"{CATALOG}.{SCHEMA}",
-                              baseline_table_name=BASELINE, inference_log=profile)
+                              baseline_table_name=BASELINE, inference_log=profile, slicing_exprs=SLICES)
     print("Monitor exists, updated")
 except Exception as e:
     if "does not exist" not in str(e).lower() and "not found" not in str(e).lower():
@@ -138,6 +141,7 @@ except Exception as e:
         output_schema_name=f"{CATALOG}.{SCHEMA}",    # where the two metric tables are written
         baseline_table_name=BASELINE,
         inference_log=profile,
+        slicing_exprs=SLICES,
     )
 
 # --- 4. Housekeeping: drop metric rows from granularities we no longer use ----------------------------------
