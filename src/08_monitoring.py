@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # 8. Monitor drift and train/serve skew
 # MAGIC
-# MAGIC 1. **Unpack the inference table.** The endpoint logs each request and response as JSON. We turn that into one row
+# MAGIC 1. **Unpack the inference table credit_risk_payload.** The endpoint auto logs each request and response as JSON. We turn that into one row
 # MAGIC    per scored application: the request fields, the features the model saw, the score and the timestamp.
 # MAGIC 2. **Add outcomes** (repaid or defaulted) as they become known, so model quality can be tracked too.
 # MAGIC 3. **Data profiling** compares live traffic with the training data (the baseline from step 5), computes drift
@@ -38,7 +38,7 @@ raw.printSchema()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 1. One row per scored application
+# MAGIC ## 1. One row per scored application, batches -> single rows
 
 # COMMAND ----------
 
@@ -92,6 +92,11 @@ display(spark.table(LOG_TABLE).orderBy(F.desc("request_ts")).limit(10))
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC Why the monitor uses the log table: data profiling needs typed columns to compare with the training data, a model version, a prediction column and a label column. The payload table has none of those as columns. inference_log also feeds next_training_set (step 9).
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## 2. Data profiling with the training data as baseline
 
 # COMMAND ----------
@@ -126,6 +131,11 @@ except Exception as e:
         baseline_table_name=BASELINE,
         inference_log=profile,
     )
+# metric rows from granularities no longer configured stay in the tables and show up first in the dashboard filter
+for t in (f"{LOG_TABLE}_profile_metrics", f"{LOG_TABLE}_drift_metrics"):
+    if spark.catalog.tableExists(t):
+        spark.sql(f"DELETE FROM {t} WHERE granularity IS NOT NULL AND granularity NOT IN ('1 day')")
+
 w.quality_monitors.run_refresh(table_name=LOG_TABLE)
 monitor = w.quality_monitors.get(table_name=LOG_TABLE)
 print("Dashboard:", f"{w.config.host}/dashboardsv3/{monitor.dashboard_id}")
