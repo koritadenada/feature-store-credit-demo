@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pay in instalments</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --lava:#FF3621; --navy:#1B3139; --muted:#5A6B72; --line:#E2E6EA; --line2:#CDD5DB; --wash:#F5F7F9;
+          --green:#00A06B; --amber:#E39B00; --red:#E5484D; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:var(--navy); background:#fff; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:18px 36px; border-bottom:1px solid var(--line); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; }
+  .brand .logo { width:30px; height:30px; border-radius:8px; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .toggle { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; user-select:none; }
+  .toggle input { accent-color:var(--lava); }
+  main { display:grid; grid-template-columns: 420px 1fr; gap:32px; padding:32px 36px; max-width:1240px; margin:0 auto; }
+  .card { border:1px solid var(--line); border-radius:14px; padding:24px; box-shadow:0 2px 10px rgba(27,49,57,.06); background:#fff; }
+  h1 { font-size:24px; margin:0 0 4px; letter-spacing:-.01em; } .sub { color:var(--muted); font-size:14px; margin:0 0 22px; }
+  label { display:block; font-size:13px; font-weight:700; margin:18px 0 8px; }
+  select, input[type=number] { width:100%; padding:11px 12px; border:1px solid var(--line2); border-radius:10px; font:inherit; font-size:15px; color:var(--navy); background:#fff; }
+  .amount { display:flex; align-items:center; gap:12px; }
+  .amount input[type=range] { flex:1; accent-color:var(--lava); }
+  .amount input[type=number] { width:120px; }
+  .seg { display:flex; gap:8px; flex-wrap:wrap; }
+  .seg button { flex:1; min-width:56px; padding:10px 0; border:1px solid var(--line2); background:#fff; border-radius:10px; font:inherit; font-size:14px; cursor:pointer; color:var(--navy); }
+  .seg button.on { border-color:var(--navy); background:var(--navy); color:#fff; font-weight:700; }
+  .monthly { margin-top:18px; padding:12px 14px; border-radius:10px; background:var(--wash); display:flex; justify-content:space-between; font-size:14px; }
+  .monthly b { font-size:16px; }
+  .go { margin-top:22px; width:100%; padding:14px; border:0; border-radius:12px; background:var(--lava); color:#fff; font:inherit; font-size:16px; font-weight:700; cursor:pointer; }
+  .go:disabled { opacity:.6; cursor:default; }
+  /* result */
+  .empty { height:100%; min-height:420px; display:flex; align-items:center; justify-content:center; color:var(--muted); text-align:center; border:1.5px dashed var(--line2); border-radius:14px; }
+  .steps { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+  .step { display:flex; align-items:center; gap:10px; font-size:14px; color:var(--muted); }
+  .step .dot { width:18px; height:18px; border-radius:50%; border:2px solid var(--line2); flex:0 0 18px; }
+  .step.done { color:var(--navy); } .step.done .dot { background:var(--green); border-color:var(--green); }
+  .step.run .dot { border-color:var(--lava); border-top-color:transparent; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .verdict { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; border-radius:14px; color:#fff; }
+  .verdict .t { font-size:28px; font-weight:700; letter-spacing:-.01em; } .verdict .s { font-size:14px; opacity:.92; margin-top:2px; }
+  .verdict .p { text-align:right; } .verdict .p b { font-size:30px; display:block; }
+  .v-approved { background:var(--green); } .v-review { background:var(--amber); } .v-declined { background:var(--red); }
+  .bar { position:relative; display:flex; height:12px; margin:30px 0 6px; }
+  .bar i { display:block; height:100%; } .bar i:first-child { border-radius:6px 0 0 6px; } .bar i:last-child { border-radius:0 6px 6px 0; }
+  .marker { position:absolute; top:-8px; width:3px; height:28px; background:var(--navy); border-radius:2px; transition:left .6s ease; }
+  .marker b { position:absolute; top:-20px; left:50%; transform:translateX(-50%); font-size:12px; white-space:nowrap; }
+  .ticks { display:flex; font-size:12px; color:var(--muted); } .ticks span { flex:1; }
+  .note { font-size:12px; color:var(--muted); margin-top:6px; }
+  h3 { font-size:15px; margin:26px 0 10px; }
+  .facts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .fact { border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .fact .k { font-size:12px; color:var(--muted); } .fact .v { font-size:17px; font-weight:700; margin-top:2px; }
+  .fact.req { border-color:#FFC7BE; background:#FFF6F4; }
+  .src { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-left:6px; color:var(--lava); }
+  .src.lk { color:var(--navy); }
+  pre { background:#0F1E23; color:#E6EDF0; border-radius:10px; padding:14px; font-size:12px; overflow:auto; max-height:260px; margin:0; }
+  .dev { display:none; } .dev.show { display:block; }
+  .devgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .devgrid .lbl { font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; }
+  .err { padding:14px; border-radius:10px; background:#FFF0EE; color:#9B2C1F; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2.5" stroke="#fff" stroke-width="2"/><path d="M3 10h18" stroke="#FF3621" stroke-width="2"/></svg></div>Pay in instalments</div>
+  <label class="toggle"><input type="checkbox" id="devtoggle"> Show request and response</label>
+</header>
+
+<main>
+  <section class="card">
+    <h1>Apply in a minute</h1>
+    <p class="sub">Choose how much and how long. You get an answer straight away.</p>
+
+    <label for="customer">Customer</label>
+    <select id="customer"></select>
+
+    <label>Amount</label>
+    <div class="amount">
+      <input type="range" id="amountRange" min="100" max="10000" step="50" value="1200">
+      <input type="number" id="amount" min="100" max="10000" step="50" value="1200">
+    </div>
+
+    <label>Term (months)</label>
+    <div class="seg" id="term"></div>
+
+    <label>Channel</label>
+    <div class="seg" id="channel"></div>
+
+    <div class="monthly"><span>Monthly instalment</span><b id="monthly"></b></div>
+    <button class="go" id="go">Check my application</button>
+  </section>
+
+  <section>
+    <div id="result" class="empty"><div>Fill in the application and press<br><b>Check my application</b>.</div></div>
+  </section>
+</main>
+
+<script>
+const TERMS = [3, 6, 12, 24, 36], CHANNELS = [["app", "Mobile app"], ["web", "Website"], ["partner", "Partner shop"]];
+let term = 12, channel = "app", policy = { approve_below: 0.10, review_below: 0.20 };
+const $ = id => document.getElementById(id);
+const eur = v => "EUR " + Number(v).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function seg(el, items, current, onPick) {
+  el.innerHTML = "";
+  items.forEach(([val, txt]) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = txt;
+    b.className = val === current ? "on" : "";
+    b.onclick = () => { onPick(val); seg(el, items, val, onPick); updateMonthly(); };
+    el.appendChild(b);
+  });
+}
+function updateMonthly() { $("monthly").textContent = eur((+$("amount").value || 0) / term); }
+
+$("amountRange").oninput = e => { $("amount").value = e.target.value; updateMonthly(); };
+$("amount").oninput = e => { $("amountRange").value = e.target.value; updateMonthly(); };
+$("devtoggle").onchange = () => document.querySelectorAll(".dev").forEach(d => d.classList.toggle("show", $("devtoggle").checked));
+seg($("term"), TERMS.map(t => [t, String(t)]), term, v => term = v);
+seg($("channel"), CHANNELS, channel, v => channel = v);
+updateMonthly();
+
+fetch("api/customers").then(r => r.json()).then(d => {
+  policy = d.policy;
+  $("customer").innerHTML = d.customers.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join("");
+});
+
+function fmt(kind, v) {
+  if (v === null || v === undefined) return "n/a";
+  if (kind === "eur") return eur(v);
+  if (kind === "pct") return (v * 100).toFixed(1) + "%";
+  if (kind === "ratio") return Number(v).toFixed(2) + "x";
+  return Math.round(v).toLocaleString("en");
+}
+
+function stepsHtml(state) {
+  const s = [["Credit bureau check", state > 0], ["Scoring your application", state > 1]];
+  return `<div class="steps">${s.map(([t, done], i) => `<div class="step ${done ? "done" : state === i ? "run" : ""}"><span class="dot"></span>${t}</div>`).join("")}</div>`;
+}
+
+$("go").onclick = async () => {
+  const body = { customer_id: $("customer").value, requested_amount: +$("amount").value, term_months: term, channel };
+  $("go").disabled = true;
+  const out = $("result"); out.className = "card";
+  out.innerHTML = stepsHtml(0);
+  setTimeout(() => { if ($("go").disabled) out.innerHTML = stepsHtml(1); }, 450);
+  try {
+    const r = await fetch("api/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "The scoring service did not answer.");
+    render(d);
+  } catch (e) {
+    out.innerHTML = `<div class="err"><b>We could not score this application right now.</b><br>${e.message}</div>`;
+  } finally { $("go").disabled = false; }
+};
+
+function render(d) {
+  const p = d.probability, pct = (p * 100).toFixed(1) + "%";
+  const words = { approved: ["Approved", "You can pay in " + term + " instalments."],
+                  review: ["In review", "We will confirm within one working day."],
+                  declined: ["Not approved", "We cannot offer this plan right now."] }[d.decision];
+  const left = Math.min(p / 0.30, 1) * 100;   // bar shows 0 to 30%
+  const req = d.request.dataframe_records[0];
+  $("result").innerHTML = `
+    ${stepsHtml(2)}
+    <div class="verdict v-${d.decision}">
+      <div><div class="t">${words[0]}</div><div class="s">${words[1]}</div></div>
+      <div class="p"><span style="font-size:12px;opacity:.9">probability of default</span><b>${pct}</b></div>
+    </div>
+    <div class="bar">
+      <i style="width:33.3%;background:#BDE7D6"></i><i style="width:33.3%;background:#FFE2A8"></i><i style="width:33.4%;background:#FFC7BE"></i>
+      <div class="marker" style="left:${left}%"><b>${pct}</b></div>
+    </div>
+    <div class="ticks"><span>approve, below ${policy.approve_below * 100}%</span><span>review, ${policy.approve_below * 100}% to ${policy.review_below * 100}%</span><span style="text-align:right">decline, above ${policy.review_below * 100}%</span></div>
+    <div class="note">Example credit policy for the demo.</div>
+
+    <h3>What the decision was based on</h3>
+    <div class="facts">
+      <div class="fact req"><div class="k">Amount and term<span class="src">application</span></div><div class="v">${eur(req.requested_amount)} / ${req.term_months} mo</div></div>
+      <div class="fact req"><div class="k">Credit bureau score<span class="src">bureau</span></div><div class="v">${d.bureau_score}</div></div>
+      ${d.seen.map(f => `<div class="fact"><div class="k">${f.label}<span class="src lk">${f.key === "debt_to_income" ? "calculated" : "history"}</span></div><div class="v">${fmt(f.kind, f.value)}</div></div>`).join("")}
+    </div>
+
+    <div class="dev ${$("devtoggle").checked ? "show" : ""}">
+      <h3>Request and response</h3>
+      <div class="devgrid">
+        <div><div class="lbl"><span>Sent to the scoring endpoint</span></div><pre>${JSON.stringify(d.request, null, 2)}</pre></div>
+        <div><div class="lbl"><span>Received</span><span>${d.latency_ms} ms</span></div><pre>${JSON.stringify(d.response, null, 2)}</pre></div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

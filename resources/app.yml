@@ -1,0 +1,12 @@
+resources:
+  apps:
+    loan_app:
+      name: loan-scoring-app
+      description: Loan application demo that scores one application on the feature store endpoint.
+      source_code_path: ../app
+      resources:
+        - name: serving-endpoint
+          description: Credit risk scoring endpoint (query only)
+          serving_endpoint:
+            name: ${var.endpoint}
+            permission: CAN_QUERY

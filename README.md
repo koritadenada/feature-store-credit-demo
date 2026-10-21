@@ -21,6 +21,8 @@ Everything is a Declarative Automation Bundle, so it can be redeployed to any wo
 | 9 | `src/09_next_training_set.py` | Logged requests joined with outcomes: the next training set matches what was known at decision time |
 | 10 | `src/10_cost.py` | What the demo cost, from `system.billing.usage` and list prices |
 
+The **loan application app** is in `app/` (FastAPI + one HTML page, deployed with the bundle as `loan_app`): pick a customer, amount, term and channel, and it scores the application on the endpoint and shows the decision, what it was based on, and optionally the raw request and response. Start it with `databricks bundle run loan_app -t dev --profile <profile>`.
+
 The animated architecture is in `docs/`: `architecture.html` plays on a loop (for recording), and
 `architecture_presenter.html` advances one step per key press. Rebuild both with `python3 docs/build_architecture.py`.
 
