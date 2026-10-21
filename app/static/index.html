@@ -56,6 +56,7 @@
   .fact.req { border-color:#FFC7BE; background:#FFF6F4; }
   .src { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-left:6px; color:var(--lava); }
   .src.lk { color:var(--navy); }
+  .fact.calc { border-color:#A7DFC9; background:#F0FAF5; } .src.calc { color:var(--green); }
   pre { background:#0F1E23; color:#E6EDF0; border-radius:10px; padding:14px; font-size:12px; overflow:auto; max-height:260px; margin:0; }
   .dev { display:none; } .dev.show { display:block; }
   .devgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -180,7 +181,7 @@ function render(d) {
     <div class="facts">
       <div class="fact req"><div class="k">Amount and term<span class="src">application</span></div><div class="v">${eur(req.requested_amount)} / ${req.term_months} mo</div></div>
       <div class="fact req"><div class="k">Credit bureau score<span class="src">bureau</span></div><div class="v">${d.bureau_score}</div></div>
-      ${d.seen.map(f => `<div class="fact"><div class="k">${f.label}<span class="src lk">${f.key === "debt_to_income" ? "calculated" : "history"}</span></div><div class="v">${fmt(f.kind, f.value)}</div></div>`).join("")}
+      ${d.seen.map(f => { const c = f.key === "debt_to_income"; return `<div class="fact${c ? " calc" : ""}"><div class="k">${f.label}<span class="src ${c ? "calc" : "lk"}">${c ? "calculated" : "history"}</span></div><div class="v">${fmt(f.kind, f.value)}</div></div>`; }).join("")}
     </div>
 
     <div class="dev ${$("devtoggle").checked ? "show" : ""}">
