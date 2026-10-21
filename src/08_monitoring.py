@@ -92,7 +92,7 @@ display(spark.table(LOG_TABLE).orderBy(F.desc("request_ts")).limit(10))
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Why the monitor uses the log table: data profiling needs typed columns to compare with the training data, a model version, a prediction column and a label column. The payload table has none of those as columns. inference_log also feeds next_training_set (step 9).
+# MAGIC Why the monitor uses the **log table**: data profiling needs typed columns to compare with the training data, a model version, a prediction column and a label column. The payload table has none of those as columns. inference_log also feeds next_training_set (step 9).
 
 # COMMAND ----------
 
@@ -101,42 +101,56 @@ display(spark.table(LOG_TABLE).orderBy(F.desc("request_ts")).limit(10))
 
 # COMMAND ----------
 
+# --- 1. The baseline: what "normal" looks like -------------------------------------------------------------
+# The training set from step 5. Every live day is compared with it, so drift means "different from training".
+# It needs the same prediction and label columns as the log; baselines saved by older runs of step 5 lack
+# predicted_default, so add it once: score >= 0.2 counts as "predicted to default" (the decline line).
 bl = spark.table(BASELINE)
-if "predicted_default" not in bl.columns:   # baselines saved by older runs of step 5
+if "predicted_default" not in bl.columns:
     (bl.withColumn("predicted_default", (F.col("prediction") >= 0.2).cast("int"))
        .withColumn("defaulted", F.col("defaulted").cast("int"))
        .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(BASELINE))
 
+# --- 2. What the monitor reads from each row of inference_log -----------------------------------------------
 me = w.current_user.me().user_name
-profile = MonitorInferenceLog(
-    problem_type=MonitorInferenceLogProblemType.PROBLEM_TYPE_CLASSIFICATION,
-    prediction_col="predicted_default",
-    label_col="defaulted",
-    model_id_col="model_version",
-    timestamp_col="request_ts",
-    granularities=["1 day"],
+profile = MonitorInferenceLog(                       # "inference" profile: built for model request logs
+    problem_type=MonitorInferenceLogProblemType.PROBLEM_TYPE_CLASSIFICATION,  # yes/no outcome -> accuracy, precision, ...
+    prediction_col="predicted_default",              # what the model said (0/1)
+    label_col="defaulted",                           # what really happened (0/1, empty until known)
+    model_id_col="model_version",                    # metrics per model version, so v2 and v3 are not mixed
+    timestamp_col="request_ts",                      # when the request came in: rows are grouped into time windows
+    granularities=["1 day"],                         # one window per day
 )
+# every other column (requested_amount, income, bureau score, ...) is profiled as a feature: stats + drift
+
+# --- 3. Create the monitor, or update it if it already exists ------------------------------------------------
 try:
-    w.quality_monitors.get(table_name=LOG_TABLE)
+    w.quality_monitors.get(table_name=LOG_TABLE)     # raises if there is no monitor yet
     w.quality_monitors.update(table_name=LOG_TABLE, output_schema_name=f"{CATALOG}.{SCHEMA}",
                               baseline_table_name=BASELINE, inference_log=profile)
     print("Monitor exists, updated")
 except Exception as e:
     if "does not exist" not in str(e).lower() and "not found" not in str(e).lower():
-        raise
+        raise                                        # a real error, not "no monitor yet"
     w.quality_monitors.create(
         table_name=LOG_TABLE,
-        assets_dir=f"/Workspace/Users/{me}/credit_feature_store_monitoring",
-        output_schema_name=f"{CATALOG}.{SCHEMA}",
+        assets_dir=f"/Workspace/Users/{me}/credit_feature_store_monitoring",   # where the generated dashboard is saved
+        output_schema_name=f"{CATALOG}.{SCHEMA}",    # where the two metric tables are written
         baseline_table_name=BASELINE,
         inference_log=profile,
     )
-# metric rows from granularities no longer configured stay in the tables and show up first in the dashboard filter
+
+# --- 4. Housekeeping: drop metric rows from granularities we no longer use ----------------------------------
+# (an earlier run used "1 hour"; those rows stay in the tables and the dashboard filter would pick them first)
 for t in (f"{LOG_TABLE}_profile_metrics", f"{LOG_TABLE}_drift_metrics"):
     if spark.catalog.tableExists(t):
         spark.sql(f"DELETE FROM {t} WHERE granularity IS NOT NULL AND granularity NOT IN ('1 day')")
 
-w.quality_monitors.run_refresh(table_name=LOG_TABLE)
+# --- 5. Compute the metrics now (normally on a schedule) -----------------------------------------------------
+# A refresh writes two tables, and the dashboard reads them:
+#   inference_log_profile_metrics : per day and column -> counts, nulls, mean, quantiles; accuracy etc. once labels exist
+#   inference_log_drift_metrics   : per day and column -> how far it moved vs the previous day and vs the baseline
+w.quality_monitors.run_refresh(table_name=LOG_TABLE)  # starts the refresh; it finishes in the background (a few minutes)
 monitor = w.quality_monitors.get(table_name=LOG_TABLE)
 print("Dashboard:", f"{w.config.host}/dashboardsv3/{monitor.dashboard_id}")
 print("Drift metrics table:", monitor.drift_metrics_table_name)
