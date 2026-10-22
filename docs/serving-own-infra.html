@@ -282,7 +282,7 @@
   <!-- ============ PART 1: FEATURES AND TRAINING ============ -->
   <section class="scene" data-scene="1" data-dur="9500">
     <div class="stitle rev" data-t="0"><div class="k">Part 1</div><div class="h">In Databricks: features and training</div></div>
-    <div class="zone dbx rev" data-t="0" style="left:24px;top:176px;width:1232px;height:432px"><span class="zl">Databricks workspace</span></div>
+    <div class="zone dbx rev" data-t="0" style="left:24px;top:176px;width:1232px;height:432px"><span class="zl">Databricks workspace &middot; data in your S3</span></div>
     <svg class="wires" viewBox="0 0 1280 720">
       <path id="a1" class="wire" pathLength="1" d="M 250 430 L 290 430" data-t="1250"/>
       <path id="a2" class="wire" pathLength="1" d="M 500 430 L 540 430" data-t="2300"/>
@@ -345,18 +345,18 @@
 
   <!-- ============ PART 2: PUBLISH AND DEPLOY ============ -->
   <section class="scene" data-scene="2" data-dur="10500">
-    <div class="stitle rev" data-t="0"><div class="k">Part 2</div><div class="h">Publish and deploy: into your AWS account</div></div>
+    <div class="stitle rev" data-t="0"><div class="k">Part 2</div><div class="h">Publish and deploy: your data stays in your AWS account</div></div>
     <div class="zone dbx rev" data-t="0" style="left:24px;top:176px;width:436px;height:432px"><span class="zl">Databricks workspace</span></div>
     <div class="zone aws rev" data-t="0" style="left:484px;top:176px;width:772px;height:432px"><span class="zl">Your AWS account</span></div>
     <svg class="wires" viewBox="0 0 1280 720">
-      <path id="b1" class="wire hot" pathLength="1" d="M 430 280 L 508 280" data-t="1500"/>
-      <path id="b2" class="wire hot" pathLength="1" d="M 810 280 L 900 280" data-t="2600"/>
-      <path id="b3" class="wire" pathLength="1" d="M 430 500 L 508 500" data-t="6000"/>
-      <path id="b4" class="wire" pathLength="1" d="M 810 500 L 900 500" data-t="7600"/>
-      <text class="wlabel" x="469" y="268" text-anchor="middle" data-t="1700">publish_table</text>
-      <text class="wlabel" x="855" y="268" text-anchor="middle" data-t="2800">your network</text>
-      <text class="wlabel" x="469" y="488" text-anchor="middle" data-t="6100">pull</text>
-      <circle class="pulse" r="5" data-t="1800"><animateMotion dur="1.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#b1"/></animateMotion></circle><circle class="pulse" r="5" data-t="2900"><animateMotion dur="1.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#b2"/></animateMotion></circle><circle class="pulse" r="5" data-t="6300"><animateMotion dur="1.4s" repeatCount="indefinite" begin="indefinite"><mpath href="#b3"/></animateMotion></circle>
+      <path id="b0" class="wire" pathLength="1" d="M 430 280 L 508 280" data-t="1200"/>
+      <path id="b1" class="wire hot" pathLength="1" d="M 728 280 L 758 280" data-t="2500"/>
+      <path id="b2" class="wire hot" pathLength="1" d="M 978 280 L 1008 280" data-t="3300"/>
+      <path id="b3" class="wire" pathLength="1" d="M 430 500 L 758 500" data-t="6000"/>
+      <path id="b4" class="wire" pathLength="1" d="M 978 500 L 1008 500" data-t="7600"/>
+      <text class="wlabel" x="469" y="268" text-anchor="middle" data-t="1300">governs</text>
+      <text class="wlabel" x="594" y="488" text-anchor="middle" data-t="6100">pull at deploy time</text>
+      <circle class="pulse" r="5" data-t="2800"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#b1"/></animateMotion></circle><circle class="pulse" r="5" data-t="3600"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#b2"/></animateMotion></circle><circle class="pulse" r="5" data-t="6300"><animateMotion dur="1.6s" repeatCount="indefinite" begin="indefinite"><mpath href="#b3"/></animateMotion></circle>
     </svg>
     <div class="node db rev" data-t="1000" style="left:54px;top:222px;width:376px;height:116px">
       <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -373,23 +373,31 @@
 <path d="M158.038 342.579L117.109 413.316L187.905 454.211L228.833 383.474L158.038 342.579Z" fill="#FABFBA"/>
 <path d="M131.857 215.105H50V296.895H131.857V215.105Z" fill="#FABFBA"/>
 <path d="M187.905 58.1582L117.109 99.0529L158.038 169.79L228.833 128.895L187.905 58.1582Z" fill="#FABFBA"/>
-</svg></div><div><div class="name">Feature table</div><div class="desc">Latest snapshot per customer goes online</div></div></div>
-    <div class="node db rev" data-t="1900" style="left:508px;top:222px;width:302px;height:116px">
+</svg></div><div><div class="name">Unity Catalog</div><div class="desc">Feature table definition, permissions and access; no data passes through here</div></div></div>
+    <div class="node db rev" data-t="1300" style="left:508px;top:222px;width:220px;height:116px">
+      <div class="ico"><svg viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M126.77 25.11H23.23C21.2868 25.1126 19.4239 25.8857 18.0499 27.2598C16.6758 28.6339 15.9027 30.4968 15.9 32.44V47H122.45V44H18.9V32.44C18.9 31.2916 19.3562 30.1902 20.1683 29.3782C20.9803 28.5662 22.0816 28.11 23.23 28.11H126.77C127.918 28.11 129.02 28.5662 129.832 29.3782C130.644 30.1902 131.1 31.2916 131.1 32.44V117.56C131.1 118.708 130.644 119.81 129.832 120.622C129.02 121.434 127.918 121.89 126.77 121.89H23.23C22.0816 121.89 20.9803 121.434 20.1683 120.622C19.3562 119.81 18.9 118.708 18.9 117.56V58.26H15.9V117.56C15.9027 119.503 16.6758 121.366 18.0499 122.74C19.4239 124.114 21.2868 124.887 23.23 124.89H126.77C128.713 124.887 130.576 124.114 131.95 122.74C133.324 121.366 134.097 119.503 134.1 117.56V32.44C134.097 30.4968 133.324 28.6339 131.95 27.2598C130.576 25.8857 128.713 25.1126 126.77 25.11Z" fill="#FF5F46"/>
+<path d="M25.6 36.18C25.602 36.6364 25.7391 37.0821 25.9942 37.4606C26.2492 37.8392 26.6106 38.1337 27.0329 38.307C27.4552 38.4803 27.9193 38.5246 28.3668 38.4344C28.8142 38.3441 29.2249 38.1233 29.5469 37.7999C29.869 37.4764 30.088 37.0648 30.1763 36.617C30.2646 36.1692 30.2183 35.7052 30.0432 35.2837C29.8681 34.8622 29.572 34.502 29.1923 34.2486C28.8127 33.9952 28.3664 33.86 27.91 33.86C27.6058 33.86 27.3046 33.9201 27.0237 34.0368C26.7428 34.1535 26.4877 34.3245 26.273 34.5401C26.0584 34.7557 25.8885 35.0115 25.773 35.2929C25.6575 35.5743 25.5987 35.8758 25.6 36.18Z" fill="#FF5F46"/>
+<path d="M34.51 36.18C34.51 36.6388 34.6461 37.0874 34.901 37.4689C35.1559 37.8504 35.5183 38.1478 35.9422 38.3234C36.3661 38.499 36.8326 38.5449 37.2826 38.4554C37.7327 38.3659 38.146 38.1449 38.4705 37.8205C38.795 37.496 39.0159 37.0826 39.1054 36.6326C39.195 36.1826 39.149 35.7161 38.9734 35.2922C38.7978 34.8682 38.5005 34.5059 38.1189 34.251C37.7374 33.9961 37.2889 33.86 36.83 33.86C36.2147 33.86 35.6246 34.1044 35.1895 34.5395C34.7544 34.9746 34.51 35.5647 34.51 36.18Z" fill="#FF5F46"/>
+<path d="M43.4301 36.18C43.4301 36.6393 43.5664 37.0882 43.8218 37.47C44.0771 37.8517 44.44 38.149 44.8646 38.3243C45.2891 38.4996 45.756 38.545 46.2064 38.4547C46.6567 38.3643 47.07 38.1424 47.3941 37.8169C47.7181 37.4915 47.9383 37.0771 48.0267 36.6265C48.1151 36.1758 48.0677 35.709 47.8906 35.2852C47.7134 34.8615 47.4145 34.4998 47.0317 34.2461C46.6489 33.9924 46.1993 33.858 45.7401 33.86C45.1265 33.8627 44.5389 34.1082 44.106 34.543C43.6731 34.9778 43.43 35.5664 43.4301 36.18Z" fill="#FF5F46"/>
+<path d="M122.93 112.58V58.24H27.0699V112.58H30.0699V96.47H45.6399V112.58H48.6399V96.47H64.2199V112.58H67.2199V96.47H82.7899V112.58H85.7899V96.47H101.36V112.58H104.36V96.47H119.93V112.58H122.93ZM119.93 75.85H104.36V61.24H119.93V75.85ZM67.2199 61.24H82.7899V75.85H67.2199V61.24ZM64.2199 75.85H48.6399V61.24H64.2199V75.85ZM85.7899 61.24H101.36V75.85H85.7899V61.24ZM45.6399 61.24V75.85H30.0699V61.24H45.6399ZM30.0699 93.47V78.85H45.6399V93.47H30.0699ZM48.6399 93.47V78.85H64.2199V93.47H48.6399ZM67.2199 93.47V78.85H82.7899V93.47H67.2199ZM85.7899 93.47V78.85H101.36V93.47H85.7899ZM104.36 93.47V78.85H119.93V93.47H104.36Z" fill="#FF5F46"/>
+</svg></div><div><div class="name">Feature table</div><div class="desc">Delta files in your S3 bucket</div></div></div>
+    <div class="node db rev" data-t="2700" style="left:758px;top:222px;width:220px;height:116px">
       <span class="badge on">runs in your VPC</span>
       <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M220.408 401.342L362.785 257.242L220.408 113.143L220.408 56L299.582 56L299.582 136.544L314.387 142.792L370.291 85.8379L426.713 143.32L370.807 200.274L376.941 215.356H456.002V296.644H376.941L370.807 311.726L426.713 368.68L370.291 426.162L314.385 369.208L299.582 375.456L299.582 456H220.408L220.408 401.342Z" fill="#FABFBA"/>
 <path d="M156.584 100.984V100.722L308.78 256.001L156.584 411.281V411.004L141.711 426.159L85.2895 368.676L141.196 311.722L135.061 296.641H56V215.352H135.061L141.196 200.271L85.2895 143.317L141.711 85.8345L156.584 100.984Z" fill="#FF5F46"/>
-</svg></div><div><div class="name">Publish job</div><div class="desc">Databricks classic compute, inside your AWS account</div></div></div>
-    <div class="node ext rev" data-t="3000" style="left:900px;top:222px;width:330px;height:116px">
-      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="64" y="72" width="384" height="96" rx="20" fill="#FF5F46"/><rect x="64" y="208" width="384" height="96" rx="20" fill="#FABFBA"/><rect x="64" y="344" width="384" height="96" rx="20" fill="#FABFBA"/><rect x="96" y="236" width="96" height="40" rx="10" fill="#FF5F46"/><rect x="96" y="372" width="96" height="40" rx="10" fill="#FF5F46"/><rect x="96" y="100" width="96" height="40" rx="10" fill="#fff"/></svg></div><div><div class="name">Your DynamoDB</div><div class="desc">Online features, read by customer_id</div></div></div>
-    <div class="nocall rev" data-t="4200" style="left:552px;top:352px"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#00A06B" stroke-width="2"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#00A06B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>No Private Link needed</div>
+</svg></div><div><div class="name">Publish job</div><div class="desc">publish_table on classic compute</div></div></div>
+    <div class="node ext rev" data-t="3600" style="left:1008px;top:222px;width:222px;height:116px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="64" y="72" width="384" height="96" rx="20" fill="#FF5F46"/><rect x="64" y="208" width="384" height="96" rx="20" fill="#FABFBA"/><rect x="64" y="344" width="384" height="96" rx="20" fill="#FABFBA"/><rect x="96" y="236" width="96" height="40" rx="10" fill="#FF5F46"/><rect x="96" y="372" width="96" height="40" rx="10" fill="#FF5F46"/><rect x="96" y="100" width="96" height="40" rx="10" fill="#fff"/></svg></div><div><div class="name">Your DynamoDB</div><div class="desc">Online features, by customer_id</div></div></div>
+    <div class="nocall rev" data-t="4300" style="left:686px;top:356px"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#00A06B" stroke-width="2"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#00A06B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>No Private Link needed: the data path stays in your account</div>
     <div class="node hero rev" data-t="5400" style="left:54px;top:442px;width:376px;height:116px">
       <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M136 136L256 256M376 136L256 256M256 256L136 376M256 256L376 376" stroke="#FABFBA" stroke-width="28"/><circle cx="256" cy="256" r="62" fill="#FF5F46"/><circle cx="120" cy="120" r="46" fill="#FABFBA"/><circle cx="392" cy="120" r="46" fill="#FABFBA"/><circle cx="120" cy="392" r="46" fill="#FF5F46"/><circle cx="392" cy="392" r="46" fill="#FF5F46"/></svg></div><div><div class="name">Model and debt_to_income()</div><div class="desc">Model in MLflow, function code in Unity Catalog</div></div></div>
-    <div class="node ext rev" data-t="6300" style="left:508px;top:442px;width:302px;height:116px">
+    <div class="node ext rev" data-t="6300" style="left:758px;top:442px;width:220px;height:116px">
       <span class="badge">deploy time only</span>
       <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="176" y="176" width="160" height="160" rx="24" fill="#FF5F46"/><path d="M96 256C96 168 168 96 256 96C318 96 372 132 398 184" stroke="#FABFBA" stroke-width="34" stroke-linecap="round"/><path d="M416 256C416 344 344 416 256 416C194 416 140 380 114 328" stroke="#FABFBA" stroke-width="34" stroke-linecap="round"/><path d="M408 120V196H332" stroke="#FF5F46" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/><path d="M104 392V316H180" stroke="#FF5F46" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="name">Your CI/CD</div><div class="desc">Pulls the model and the function code</div></div></div>
-    <div class="node ext rev" data-t="7900" style="left:900px;top:442px;width:330px;height:116px">
-      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M256 40L444 132L470 336L340 470H172L42 336L68 132Z" fill="#FABFBA"/><circle cx="256" cy="268" r="70" stroke="#FF5F46" stroke-width="30"/><path d="M256 126V198M256 338V410M118 222L186 246M326 290L394 314M150 378L200 322M312 214L362 158M150 158L200 214M312 322L362 378" stroke="#FF5F46" stroke-width="26" stroke-linecap="round"/></svg></div><div><div class="name">Your Kubernetes service</div><div class="desc">Model + function shipped together, per model version</div></div></div>
+    <div class="node ext rev" data-t="7900" style="left:1008px;top:442px;width:222px;height:116px">
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M256 40L444 132L470 336L340 470H172L42 336L68 132Z" fill="#FABFBA"/><circle cx="256" cy="268" r="70" stroke="#FF5F46" stroke-width="30"/><path d="M256 126V198M256 338V410M118 222L186 246M326 290L394 314M150 378L200 322M312 214L362 158M150 158L200 214M312 322L362 378" stroke="#FF5F46" stroke-width="26" stroke-linecap="round"/></svg></div><div><div class="name">Your Kubernetes service</div><div class="desc">Model + function, per model version</div></div></div>
   </section>
 
   <!-- ============ PART 3: AT APPLICATION TIME ============ -->
@@ -447,7 +455,7 @@
   <section class="scene" data-scene="4" data-dur="11000">
     <div class="stitle rev" data-t="0"><div class="k">Part 4</div><div class="h">After the decision: monitoring in Databricks</div></div>
     <div class="zone aws rev" data-t="0" style="left:24px;top:176px;width:252px;height:432px"><span class="zl">Your AWS</span></div>
-    <div class="zone dbx rev" data-t="0" style="left:296px;top:176px;width:960px;height:432px"><span class="zl">Databricks workspace</span></div>
+    <div class="zone dbx rev" data-t="0" style="left:296px;top:176px;width:960px;height:432px"><span class="zl">Databricks workspace &middot; data in your S3</span></div>
     <svg class="wires" viewBox="0 0 1280 720">
       <path id="d1" class="wire hot" pathLength="1" d="M 256 345 L 320 345" data-t="1100"/>
       <path id="d2" class="wire hot" pathLength="1" d="M 530 330 C 565 330, 555 250, 600 250" data-t="3000"/>
@@ -504,9 +512,10 @@ const CAPS = {
       [1200, 'A scheduled job turns transactions into <b>one feature table</b> in Unity Catalog'],
       [3600, 'Training adds the on-demand feature <b>debt_to_income</b>, a function in Unity Catalog'],
       [6000, 'The model is logged with MLflow and registered in <b>Unity Catalog</b>']],
-  2: [[0, 'Only <b>two things</b> cross into your AWS account, and neither is a request-time call'],
-      [900, '<b>publish_table</b> copies the latest features into <b>your DynamoDB</b>'],
-      [4000, 'It runs on <b>classic compute in your VPC</b>, so no Private Link is needed'],
+  2: [[0, 'Your feature data <b>never leaves your AWS account</b>'],
+      [900, 'Unity Catalog governs the feature table; its files sit <b>in your S3</b>'],
+      [2400, 'The publish job reads them and writes to <b>your DynamoDB</b>'],
+      [4200, 'It runs on <b>classic compute in your VPC</b>, so no Private Link is needed'],
       [5200, 'At deploy time, your CI/CD pulls the <b>model and the function code</b> from Unity Catalog'],
       [7400, 'Your Kubernetes service ships them <b>together, per model version</b>']],
   3: [[0, 'A customer applies. Your app calls the <b>credit bureau</b> first'],
