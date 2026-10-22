@@ -18,6 +18,9 @@
     border-radius:14px; padding:22px 24px; box-shadow:0 2px 10px rgba(27,49,57,.06); transition:box-shadow .2s, transform .2s; }
   a.card:hover { box-shadow:0 8px 24px rgba(27,49,57,.12); transform:translateY(-2px); }
   a.card.alt { border-top-color:var(--navy); }
+  .label { display:inline-block; margin-bottom:14px; padding:4px 12px; border-radius:999px; font-size:12.5px; font-weight:700;
+    background:#FFE3DE; color:var(--lava); }
+  a.card.alt .label { background:#E5EEF1; color:var(--navy); }
   .k { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--lava); }
   a.card.alt .k { color:var(--navy); }
   .t { font-size:21px; font-weight:700; margin:6px 0 8px; }
@@ -34,12 +37,14 @@
   <p class="sub">Interactive architecture for the Databricks Feature Store demo. Click a tab, or use the arrow keys to step through each part.</p>
   <div class="cards">
     <a class="card" href="architecture.html">
+      <span class="label">Databricks only</span>
       <div class="k">Serving on Databricks</div>
       <div class="t">Feature Store end to end</div>
       <div class="d">Features computed ahead of time, one request at application time with automatic feature lookup and an on-demand function, then monitoring and the next training set.</div>
       <div class="go">Open the architecture &#8594;</div>
     </a>
     <a class="card alt" href="serving-own-infra.html">
+      <span class="label">Hybrid</span>
       <div class="k">Serving from your own infrastructure</div>
       <div class="t">Databricks builds, your AWS serves</div>
       <div class="d">Features and training in Databricks, published to your own DynamoDB, scored by your own Kubernetes service, with your logs brought back for monitoring.</div>
