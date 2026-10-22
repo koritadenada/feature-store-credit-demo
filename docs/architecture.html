@@ -179,6 +179,10 @@
 
   .uclink { color:var(--uc); font-weight:700; text-decoration:none; border-bottom:1px solid currentColor; }
   .uclink:hover { color:var(--lava); }
+  .back { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; margin-right:4px; border-radius:50%;
+    border:1px solid var(--line); color:var(--muted); text-decoration:none; background:#fff; flex:0 0 32px; }
+  .back:hover { border-color:var(--line2); color:var(--navy); }
+  .back svg { width:15px; height:15px; }
   .hint { position:absolute; right:14px; bottom:8px; font-size:10.5px; color:#B8C2C8; }
 </style>
 </head>
@@ -186,7 +190,7 @@
 <div id="fit"><div id="stage">
 
   <div class="hdr" id="hdr">
-    <div class="brand"><svg viewBox="0 0 300 331" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div class="brand"><a class="back" href="./" title="All architectures" aria-label="All architectures"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><svg viewBox="0 0 300 331" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M283.923 136.449L150.144 213.624L6.88995 131.168L0 134.982V194.844L150.144 281.115L283.923 204.234V235.926L150.144 313.1L6.88995 230.644L0 234.458V244.729L150.144 331L300 244.729V184.867L293.11 181.052L150.144 263.215L16.0766 186.334V154.643L150.144 231.524L300 145.253V86.2713L292.536 81.8697L150.144 163.739L22.9665 90.9663L150.144 17.8998L254.641 78.055L263.828 72.773V65.4371L150.144 0L0 86.2713V95.6613L150.144 181.933L283.923 104.758V136.449Z" fill="#FF3621"/>
 </svg><div class="t">One loan application, end to end</div></div>
     <div class="pills">
@@ -684,6 +688,7 @@ addEventListener('keydown', e => {
   if (/^Digit[0-4]$/.test(e.code)) show(+e.code.slice(5));
 });
 if (MODE === 'present') addEventListener('click', next);
+document.querySelectorAll('a.back').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
 // links open in a new tab without advancing the presentation
 document.querySelectorAll('a.uclink').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
 // overview cards open their part
