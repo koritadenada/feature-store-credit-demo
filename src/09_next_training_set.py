@@ -5,6 +5,8 @@
 # MAGIC Each row is a real scoring request as it was logged at decision time, joined with the outcome once it is known.
 # MAGIC Retraining on this table means training data matches exactly what was available when the decision was made:
 # MAGIC no recomputing values afterwards, and a clear record for audit and model-risk review.
+# MAGIC
+# MAGIC **Docs:** [Inference tables](https://docs.databricks.com/aws/en/ai-gateway/inference-tables) · [Train models with feature tables](https://docs.databricks.com/aws/en/machine-learning/feature-store/train-models-with-feature-store)
 
 # COMMAND ----------
 

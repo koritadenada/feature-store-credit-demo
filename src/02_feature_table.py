@@ -7,6 +7,8 @@
 # MAGIC - **Primary key:** `customer_id` + `as_of_ts`. The `TIMESERIES` keyword marks `as_of_ts` as the point-in-time column.
 # MAGIC - **Snapshots:** one row per customer per week, so training can look up the value that was known at each application.
 # MAGIC - **Change Data Feed** is on, which the online store needs for Triggered and Continuous sync.
+# MAGIC
+# MAGIC **Docs:** [Feature tables in Unity Catalog](https://docs.databricks.com/aws/en/machine-learning/feature-store/uc/feature-tables-uc) · [Point-in-time lookups](https://docs.databricks.com/aws/en/machine-learning/feature-store/time-series) · [Change Data Feed](https://docs.databricks.com/aws/en/delta/delta-change-data-feed)
 
 # COMMAND ----------
 
@@ -167,27 +169,6 @@ SELECT 'latest: would leak the future' AS lookup, *
 FROM {FEATURE_TABLE} WHERE customer_id = '{CUSTOMER}' ORDER BY as_of_ts DESC LIMIT 1
 """)
 display(pit.unionByName(latest))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC The same features, recomputed from the raw transactions in that 90-day window:
-
-# COMMAND ----------
-
-snap = pit.first()
-window = spark.sql(f"""
-SELECT * FROM {BASE_TABLE}
-WHERE customer_id = '{CUSTOMER}'
-  AND txn_ts >= TIMESTAMP'{snap.as_of_ts}' - INTERVAL 90 DAYS AND txn_ts < TIMESTAMP'{snap.as_of_ts}'
-""")
-display(window.agg(
-    F.lit(str(snap.as_of_ts)).alias("snapshot"),
-    F.round(F.sum(F.when(F.col("txn_type") == "salary", F.col("amount"))) / 3, 2).alias("avg_monthly_income_90d"),
-    F.round(F.sum(F.when(F.col("txn_type") == "card", F.col("amount"))), 2).alias("total_spend_90d"),
-    F.count(F.when(F.col("txn_type") == "card", 1)).alias("txn_count_90d"),
-    F.sum(F.when(F.col("txn_type") == "instalment", F.col("is_late")).otherwise(0)).alias("late_payments_90d"),
-))
 
 # COMMAND ----------
 

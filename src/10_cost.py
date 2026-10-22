@@ -7,6 +7,8 @@
 # MAGIC
 # MAGIC Usage rows usually arrive within a few hours, so the most recent activity may not show yet.
 # MAGIC Prices are list prices for this workspace's tier and region.
+# MAGIC
+# MAGIC **Docs:** [Billing system table](https://docs.databricks.com/aws/en/admin/system-tables/billing) · [Pricing system table](https://docs.databricks.com/aws/en/admin/system-tables/pricing)
 
 # COMMAND ----------
 
@@ -17,10 +19,11 @@
 
 dbutils.widgets.text("endpoint", "credit-risk")
 dbutils.widgets.text("online_store", "credit-demo-online-store")
-dbutils.widgets.text("since", "2026-10-21")
+dbutils.widgets.text("since", "", "Since (YYYY-MM-DD, empty = last 30 days)")
 ENDPOINT = dbutils.widgets.get("endpoint")
 STORE = dbutils.widgets.get("online_store")
-SINCE = dbutils.widgets.get("since")
+import datetime as dt
+SINCE = dbutils.widgets.get("since") or str(dt.date.today() - dt.timedelta(days=30))
 
 from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()

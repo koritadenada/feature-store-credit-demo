@@ -10,6 +10,8 @@
 # MAGIC   score, so each logged response is a complete record of the decision.
 # MAGIC - **Small, scale to zero:** right for a demo. For production you would size minimum concurrency to your traffic,
 # MAGIC   because scale to zero is not recommended for latency-sensitive workloads.
+# MAGIC
+# MAGIC **Docs:** [Automatic feature lookup](https://docs.databricks.com/aws/en/machine-learning/feature-store/automatic-feature-lookup) · [Create serving endpoints](https://docs.databricks.com/aws/en/machine-learning/model-serving/create-manage-serving-endpoints) · [Inference tables](https://docs.databricks.com/aws/en/ai-gateway/inference-tables)
 
 # COMMAND ----------
 

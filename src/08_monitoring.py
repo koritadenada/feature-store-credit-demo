@@ -7,6 +7,8 @@
 # MAGIC 2. **Add outcomes** (repaid or defaulted) as they become known, so model quality can be tracked too.
 # MAGIC 3. **Data profiling** compares live traffic with the training data (the baseline from step 5), computes drift
 # MAGIC    per feature and creates a dashboard automatically.
+# MAGIC
+# MAGIC **Docs:** [Data profiling](https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-quality-monitoring/data-profiling/index) · [Create a monitor with the API](https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-quality-monitoring/data-profiling/create-monitor-api) · [Inference tables](https://docs.databricks.com/aws/en/ai-gateway/inference-tables) · [SQL alerts](https://docs.databricks.com/aws/en/sql/user/alerts/index)
 
 # COMMAND ----------
 
@@ -29,7 +31,34 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import MonitorInferenceLog, MonitorInferenceLogProblemType
+from databricks.sdk.errors import NotFound, ResourceDoesNotExist
 w = WorkspaceClient()
+
+# The inference table fills asynchronously: rows can take up to an hour after the first requests. On a first run
+# (straight after step 7) wait until most of step 7's live requests have landed; on later runs this passes at once.
+import time
+WAIT_MINUTES, MIN_LIVE_ROWS = 75, 250
+
+
+def live_rows():
+    if not spark.catalog.tableExists(PAYLOAD):
+        return 0
+    t = spark.table(PAYLOAD)
+    if "client_request_id" not in t.columns:   # the table is created empty; its full schema arrives with the first rows
+        return 0
+    return t.where("client_request_id IS NULL OR client_request_id NOT LIKE 'backfill%'").count()
+
+
+for waited in range(WAIT_MINUTES + 1):
+    live = live_rows()
+    if live >= MIN_LIVE_ROWS:
+        break
+    if waited == 0:
+        print(f"Waiting for the endpoint's logged requests to arrive in {PAYLOAD} ...")
+    time.sleep(60)
+if live == 0:
+    raise TimeoutError(f"No logged requests in {PAYLOAD} after {WAIT_MINUTES} minutes; rerun the feedback job later")
+print(f"{live} logged requests from step 7")
 
 raw = spark.table(PAYLOAD)
 print(f"{raw.count()} logged requests in {PAYLOAD}")
@@ -54,10 +83,10 @@ parsed = (raw
     .withColumn("preds", F.from_json(F.get_json_object("response", "$.predictions"), "array<string>"))
     .select("request_ts", F.posexplode(F.arrays_zip("records", "preds")).alias("i", "z"))
     .select("request_ts", "z.records.*", F.col("z.preds").alias("pred"))
-    # current model versions return an object (score + features); older ones returned only the score
+    # each prediction is an object: the score plus the features the model saw
     .withColumn("seen", F.from_json("pred", seen))
     .select("*", "seen.*")
-    .withColumn("prediction", F.coalesce(F.col("probability_of_default"), F.col("pred").cast("double")))
+    .withColumn("prediction", F.col("probability_of_default"))
     .drop("pred", "seen", "probability_of_default"))
 
 outcomes = spark.table(f"{CATALOG}.{SCHEMA}.scored_applications").select(
@@ -102,14 +131,8 @@ display(spark.table(LOG_TABLE).orderBy(F.desc("request_ts")).limit(10))
 # COMMAND ----------
 
 # --- 1. The baseline: what "normal" looks like -------------------------------------------------------------
-# The training set from step 5. Every live day is compared with it, so drift means "different from training".
-# It needs the same prediction and label columns as the log; baselines saved by older runs of step 5 lack
-# predicted_default, so add it once: score >= 0.2 counts as "predicted to default" (the decline line).
-bl = spark.table(BASELINE)
-if "predicted_default" not in bl.columns:
-    (bl.withColumn("predicted_default", (F.col("prediction") >= 0.2).cast("int"))
-       .withColumn("defaulted", F.col("defaulted").cast("int"))
-       .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(BASELINE))
+# training_set_baseline from step 5: every live day is compared with it, so drift means "different from training".
+# It has the same prediction and label columns as the log (score >= 0.2 counts as "predicted to default").
 
 # --- 2. What the monitor reads from each row of inference_log -----------------------------------------------
 me = w.current_user.me().user_name
@@ -117,7 +140,7 @@ profile = MonitorInferenceLog(                       # "inference" profile: buil
     problem_type=MonitorInferenceLogProblemType.PROBLEM_TYPE_CLASSIFICATION,  # yes/no outcome -> accuracy, precision, ...
     prediction_col="predicted_default",              # what the model said (0/1)
     label_col="defaulted",                           # what really happened (0/1, empty until known)
-    model_id_col="model_version",                    # metrics per model version, so v2 and v3 are not mixed
+    model_id_col="model_version",                    # metrics per model version, so versions are not mixed
     timestamp_col="request_ts",                      # when the request came in: rows are grouped into time windows
     granularities=["1 day"],                         # one window per day
 )
@@ -132,9 +155,7 @@ try:
     w.quality_monitors.update(table_name=LOG_TABLE, output_schema_name=f"{CATALOG}.{SCHEMA}",
                               baseline_table_name=BASELINE, inference_log=profile, slicing_exprs=SLICES)
     print("Monitor exists, updated")
-except Exception as e:
-    if "does not exist" not in str(e).lower() and "not found" not in str(e).lower():
-        raise                                        # a real error, not "no monitor yet"
+except (NotFound, ResourceDoesNotExist):          # no monitor yet: create it
     w.quality_monitors.create(
         table_name=LOG_TABLE,
         assets_dir=f"/Workspace/Users/{me}/credit_feature_store_monitoring",   # where the generated dashboard is saved
@@ -144,8 +165,8 @@ except Exception as e:
         slicing_exprs=SLICES,
     )
 
-# --- 4. Housekeeping: drop metric rows from granularities we no longer use ----------------------------------
-# (an earlier run used "1 hour"; those rows stay in the tables and the dashboard filter would pick them first)
+# --- 4. Housekeeping: drop metric rows from granularities no longer configured ------------------------------
+# (if you change `granularities`, rows for the old ones stay in the tables and the dashboard filter may pick them)
 for t in (f"{LOG_TABLE}_profile_metrics", f"{LOG_TABLE}_drift_metrics"):
     if spark.catalog.tableExists(t):
         spark.sql(f"DELETE FROM {t} WHERE granularity IS NOT NULL AND granularity NOT IN ('1 day')")
@@ -154,7 +175,27 @@ for t in (f"{LOG_TABLE}_profile_metrics", f"{LOG_TABLE}_drift_metrics"):
 # A refresh writes two tables, and the dashboard reads them:
 #   inference_log_profile_metrics : per day and column -> counts, nulls, mean, quantiles; accuracy etc. once labels exist
 #   inference_log_drift_metrics   : per day and column -> how far it moved vs the previous day and vs the baseline
-w.quality_monitors.run_refresh(table_name=LOG_TABLE)  # starts the refresh; it finishes in the background (a few minutes)
+import time
+for _ in range(60):                                   # a new monitor is PENDING for a minute or two
+    status = w.quality_monitors.get(table_name=LOG_TABLE).status
+    if status is not None and status.value == "MONITOR_STATUS_ACTIVE":
+        break
+    time.sleep(10)
+refreshes = w.quality_monitors.list_refreshes(table_name=LOG_TABLE).refreshes or []
+if not any(r.state.value in ("PENDING", "RUNNING") for r in refreshes):   # a new monitor starts its own first refresh
+    w.quality_monitors.run_refresh(table_name=LOG_TABLE)  # finishes in the background (a few minutes)
 monitor = w.quality_monitors.get(table_name=LOG_TABLE)
+
+# --- 6. Adapt the generated dashboard to a 0/1 prediction and label (see dashboard_fix.py; safe to rerun) -----
+import os, sys
+sys.path.append(os.path.abspath("."))   # dashboard_fix.py sits next to this notebook
+from dashboard_fix import patch
+from databricks.sdk.service.dashboards import Dashboard
+
+baseline_model = spark.table(BASELINE).select("model_version").first()[0]   # the Model Id filter opens on it
+dash = w.lakeview.get(monitor.dashboard_id)
+w.lakeview.update(monitor.dashboard_id, Dashboard(display_name=dash.display_name, warehouse_id=dash.warehouse_id,
+                                                  serialized_dashboard=patch(dash.serialized_dashboard, str(baseline_model))))
+w.lakeview.publish(monitor.dashboard_id, embed_credentials=True, warehouse_id=dash.warehouse_id)
 print("Dashboard:", f"{w.config.host}/dashboardsv3/{monitor.dashboard_id}")
 print("Drift metrics table:", monitor.drift_metrics_table_name)

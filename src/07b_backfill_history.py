@@ -10,6 +10,8 @@
 # MAGIC - Each request carries the features **as they were on that day** (from the offline feature table). The endpoint
 # MAGIC   uses values sent in the request instead of looking them up, which is the documented way to override a lookup.
 # MAGIC - Requests are tagged `backfill`, so step 8 doesn't count them twice as today's traffic.
+# MAGIC
+# MAGIC **Docs:** [Override looked-up features in a request](https://docs.databricks.com/aws/en/machine-learning/feature-store/automatic-feature-lookup)
 
 # COMMAND ----------
 

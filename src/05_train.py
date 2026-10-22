@@ -10,8 +10,10 @@
 # MAGIC **as of the application time** (an "as of" join on `as_of_ts`), **so the model never sees values from the future.**
 # MAGIC
 # MAGIC - `FeatureLookup`: the 90-day features, matched on `customer_id` at `application_ts`.
-# MAGIC - `FeatureFunction`: the [debt-to-income function](/explore/data/functions/main/credit_feature_store/debt_to_income) from step 4, computed from request fields plus looked-up income.
+# MAGIC - `FeatureFunction`: the debt-to-income function from step 4 (`debt_to_income` in Unity Catalog), computed from request fields plus looked-up income.
 # MAGIC - `fe.log_model`: saves the model **together with its feature definitions**, so the serving endpoint knows what to look up.
+# MAGIC
+# MAGIC **Docs:** [Train models with feature tables](https://docs.databricks.com/aws/en/machine-learning/feature-store/train-models-with-feature-store) · [Point-in-time lookups](https://docs.databricks.com/aws/en/machine-learning/feature-store/time-series) · [On-demand features](https://docs.databricks.com/aws/en/machine-learning/feature-store/on-demand-features)
 
 # COMMAND ----------
 
@@ -23,7 +25,7 @@
 dbutils.widgets.text("catalog", "main")
 dbutils.widgets.text("schema", "credit_feature_store")
 dbutils.widgets.dropdown("register", "no", ["no", "yes"], "Register the model")
-REGISTER = dbutils.widgets.get("register") == "yes"   # only the setup job registers; live runs train and evaluate only
+REGISTER = dbutils.widgets.get("register") == "yes"   # the setup job passes yes; run by hand, it trains and evaluates only
 CATALOG = dbutils.widgets.get("catalog")
 SCHEMA = dbutils.widgets.get("schema")
 FEATURE_TABLE = f"{CATALOG}.{SCHEMA}.customer_features_90d"
@@ -96,41 +98,8 @@ display(train_df.head(10))
 # MAGIC |---|---|
 # MAGIC | `requested_amount`, `term_months`, `channel`, `bureau_score`, `defaulted` | `applications` + `bureau_scores` (the labels) |
 # MAGIC | the 6 features in `FEATURES` | **`customer_features_90d`**, latest snapshot at or before `application_ts` |
-# MAGIC | `debt_to_income` | the [`debt_to_income`](/explore/data/functions/main/credit_feature_store/debt_to_income) function in Unity Catalog, computed per row |
+# MAGIC | `debt_to_income` | the `debt_to_income` function in Unity Catalog, computed per row |
 
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC **Check:** the values in the training set are the same as in the feature table. Customer `C00042`, all past applications:
-
-# COMMAND ----------
-
-from pyspark.sql import functions as F
-
-sample = labels.where("customer_id = 'C00042'")
-via_lookup = fe.create_training_set(
-    df=sample,
-    feature_lookups=[FeatureLookup(table_name=FEATURE_TABLE, lookup_key="customer_id", timestamp_lookup_key="application_ts",
-                                   feature_names=FEATURES, lookback_window=timedelta(days=14))],
-    label="defaulted",
-).load_df().select("customer_id", "application_ts", *FEATURES)
-
-sample.createOrReplaceTempView("sample_applications")
-direct = spark.sql(f"""
-SELECT s.customer_id, s.application_ts, f.as_of_ts AS snapshot_used, {", ".join("f." + c for c in FEATURES)}
-FROM sample_applications s
-JOIN {FEATURE_TABLE} f
-  ON f.customer_id = s.customer_id AND f.as_of_ts <= s.application_ts AND f.as_of_ts >= s.application_ts - INTERVAL 14 DAYS
-QUALIFY row_number() OVER (PARTITION BY s.customer_id, s.application_ts ORDER BY f.as_of_ts DESC) = 1
-""")
-
-compared = via_lookup.alias("t").join(direct.alias("f"), ["customer_id", "application_ts"]).select(
-    "customer_id", "application_ts", "f.snapshot_used",
-    *[F.col(f"t.{c}").alias(c) for c in FEATURES],
-    F.expr(" AND ".join(f"t.{c} <=> f.{c}" for c in FEATURES)).alias("same_as_feature_table"),
-).orderBy("application_ts")
-display(compared)
-print("All values identical:", compared.where("NOT same_as_feature_table").count() == 0)
 
 # COMMAND ----------
 

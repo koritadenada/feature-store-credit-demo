@@ -8,7 +8,9 @@
 # MAGIC
 # MAGIC The request carries only what exists at application time: the customer key, the application fields and the
 # MAGIC result of the (mocked) credit bureau call. The endpoint looks up the 90-day features and computes debt-to-income itself,
-# MAGIC with the same [`debt_to_income`](/explore/data/functions/main/credit_feature_store/debt_to_income) function in Unity Catalog that training used.
+# MAGIC with the same `debt_to_income` function in Unity Catalog that training used (step 4 prints its link).
+# MAGIC
+# MAGIC **Docs:** [Query serving endpoints](https://docs.databricks.com/aws/en/machine-learning/model-serving/score-custom-model-endpoints) · [Batch scoring with score_batch](https://docs.databricks.com/aws/en/machine-learning/feature-store/train-models-with-feature-store)
 
 # COMMAND ----------
 
@@ -96,7 +98,7 @@ from databricks.feature_engineering import FeatureEngineeringClient
 from pyspark.sql import functions as F
 fe = FeatureEngineeringClient()
 
-# the same inputs as the live requests above (Anna + the first 4 of the stream) ...
+# the same inputs as the live requests above (the single application + the first 4 of the stream) ...
 to_score = pd.concat([pd.DataFrame([application]), batch.head(4)[list(application)]], ignore_index=True)
 endpoint = to_score[["customer_id", "requested_amount"]].assign(
     endpoint_score=[float(response.predictions[0]["probability_of_default"])] + batch["score"].head(4).tolist())

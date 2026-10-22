@@ -8,6 +8,8 @@
 # MAGIC - **Publish mode `TRIGGERED`:** an incremental sync that runs when we ask (or on a schedule). Nothing runs between syncs.
 # MAGIC   `CONTINUOUS` would run a streaming pipeline all day, which slow-changing 90-day aggregates don't need.
 # MAGIC - Only the latest snapshot per customer goes online; training keeps using the full history offline.
+# MAGIC
+# MAGIC **Docs:** [Online feature stores](https://docs.databricks.com/aws/en/machine-learning/feature-store/online-feature-store)
 
 # COMMAND ----------
 

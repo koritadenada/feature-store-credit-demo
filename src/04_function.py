@@ -9,6 +9,8 @@
 # MAGIC Some features only exist once a customer applies. This one combines a value from the request (amount and term)
 # MAGIC with a precomputed feature (income). It is one Python function in Unity Catalog: training and the serving endpoint
 # MAGIC call the same function, so the logic can't drift apart.
+# MAGIC
+# MAGIC **Docs:** [On-demand features](https://docs.databricks.com/aws/en/machine-learning/feature-store/on-demand-features) · [Python UDFs in Unity Catalog](https://docs.databricks.com/aws/en/udf/unity-catalog)
 
 # COMMAND ----------
 

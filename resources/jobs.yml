@@ -2,7 +2,7 @@ resources:
   jobs:
     setup:
       name: feature-store-credit-setup
-      description: Builds the demo end to end, from synthetic data to a live scoring endpoint (steps 1 to 7).
+      description: Builds the demo end to end, from synthetic data to a live scoring endpoint, monitoring and the next training set (steps 1 to 9).
       tags:
         demo: feature-store-credit
       parameters:
@@ -51,10 +51,19 @@ resources:
           depends_on: [{task_key: score}]
           notebook_task:
             notebook_path: ../src/07b_backfill_history.py
+        - task_key: monitoring          # waits for the inference table to fill, then sets up monitoring
+          depends_on: [{task_key: backfill_history}]
+          timeout_seconds: 7200
+          notebook_task:
+            notebook_path: ../src/08_monitoring.py
+        - task_key: next_training_set
+          depends_on: [{task_key: monitoring}]
+          notebook_task:
+            notebook_path: ../src/09_next_training_set.py
 
     feedback:
       name: feature-store-credit-feedback
-      description: Unpacks the inference table, refreshes drift monitoring and builds the next training set (steps 8 and 9).
+      description: Daily refresh after setup - unpacks new inference rows, refreshes drift monitoring and rebuilds the next training set (steps 8 and 9).
       tags:
         demo: feature-store-credit
       schedule:                      # daily, before the alerts at 07:00 (paused in development mode)
