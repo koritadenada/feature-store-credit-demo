@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Feature Store demo: architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --lava:#FF3621; --navy:#1B3139; --muted:#5A6B72; --line:#E2E6EA; --wash:#F5F7F9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:var(--navy); background:#fff; }
+  main { max-width:920px; margin:0 auto; padding:64px 28px; }
+  h1 { font-size:34px; letter-spacing:-.015em; margin:0 0 8px; }
+  p.sub { color:var(--muted); font-size:17px; margin:0 0 36px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  a.card { display:block; text-decoration:none; color:inherit; border:1px solid var(--line); border-top:4px solid var(--lava);
+    border-radius:14px; padding:22px 24px; box-shadow:0 2px 10px rgba(27,49,57,.06); transition:box-shadow .2s, transform .2s; }
+  a.card:hover { box-shadow:0 8px 24px rgba(27,49,57,.12); transform:translateY(-2px); }
+  a.card.alt { border-top-color:var(--navy); }
+  .k { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--lava); }
+  a.card.alt .k { color:var(--navy); }
+  .t { font-size:21px; font-weight:700; margin:6px 0 8px; }
+  .d { color:var(--muted); font-size:14.5px; line-height:1.45; }
+  .go { margin-top:16px; font-weight:700; font-size:14px; }
+  footer { margin-top:40px; color:var(--muted); font-size:13.5px; line-height:1.5; }
+  footer a { color:var(--navy); }
+  @media (max-width:720px) { .cards { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>One loan application, end to end</h1>
+  <p class="sub">Interactive architecture for the Databricks Feature Store demo. Click a tab, or use the arrow keys to step through each part.</p>
+  <div class="cards">
+    <a class="card" href="architecture.html">
+      <div class="k">Serving on Databricks</div>
+      <div class="t">Feature Store end to end</div>
+      <div class="d">Features computed ahead of time, one request at application time with automatic feature lookup and an on-demand function, then monitoring and the next training set.</div>
+      <div class="go">Open the architecture &#8594;</div>
+    </a>
+    <a class="card alt" href="serving-own-infra.html">
+      <div class="k">Serving from your own infrastructure</div>
+      <div class="t">Databricks builds, your AWS serves</div>
+      <div class="d">Features and training in Databricks, published to your own DynamoDB, scored by your own Kubernetes service, with your logs brought back for monitoring.</div>
+      <div class="go">Open the architecture &#8594;</div>
+    </a>
+  </div>
+  <footer>Code, notebooks and deployment instructions: <a href="https://github.com/koritadenada/feature-store-credit-demo">github.com/koritadenada/feature-store-credit-demo</a></footer>
+</main>
+</body>
+</html>

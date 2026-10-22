@@ -5,9 +5,12 @@ application-time features, real-time serving, monitoring and the feedback loop t
 
 [![Architecture](docs/architecture.gif)](docs/architecture.html)
 
-The image cycles through the parts of the architecture. For the interactive version, open
-[`docs/architecture.html`](docs/architecture.html) in a browser (download it or clone the repo): click a tab, or use the
-arrow keys to step through each part.
+The image cycles through the parts of the architecture. **Interactive versions** (click a tab, or use the arrow keys):
+
+- [Feature Store end to end](https://koritadenada.github.io/feature-store-credit-demo/architecture.html), serving on Databricks
+- [Serving from your own infrastructure](https://koritadenada.github.io/feature-store-credit-demo/serving-own-infra.html): features and training in Databricks, published to DynamoDB, scored by your own Kubernetes service
+
+Both are single HTML files in [`docs/`](docs/), so they also work offline.
 
 ## What gets built
 
