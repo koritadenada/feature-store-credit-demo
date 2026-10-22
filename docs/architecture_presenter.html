@@ -343,6 +343,8 @@
     <svg class="wires" viewBox="0 0 1280 720">
       <path id="p2v1" class="wire" pathLength="1" d="M 130 297 L 130 317" data-t="1300"/>
       <path id="p2v2" class="wire" pathLength="1" d="M 190 317 L 190 297" data-t="1700"/>
+      <path id="p2b1" class="wire" pathLength="1" d="M 130 451 L 130 475" data-t="1900"/>
+      <path id="p2b2" class="wire" pathLength="1" d="M 190 475 L 190 451" data-t="2200"/>
       <path id="p2r" class="wire hot" pathLength="1" d="M 290 362 L 690 362" data-t="2600"/>
       <path id="p2s" class="wire" pathLength="1" d="M 690 412 L 290 412" data-t="8600"/>
       <path id="p2l" class="wire hot" pathLength="1" d="M 960 265 L 960 300" data-t="4700"/>
@@ -350,9 +352,12 @@
       <circle class="pulse" r="5" data-t="4900"><animateMotion dur="1.0s" repeatCount="indefinite" begin="indefinite"><mpath href="#p2l"/></animateMotion></circle>
     </svg>
     <div class="node ext rev" data-t="900" style="left:40px;top:174px;width:250px;height:122px">
-      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M256 48L464 160H48L256 48Z" fill="#FF5F46"/><rect x="88" y="184" width="48" height="200" fill="#FABFBA"/><rect x="180" y="184" width="48" height="200" fill="#FABFBA"/><rect x="284" y="184" width="48" height="200" fill="#FABFBA"/><rect x="376" y="184" width="48" height="200" fill="#FABFBA"/><rect x="48" y="400" width="416" height="56" fill="#FF5F46"/></svg></div><div><div class="name">Vendors</div><div class="desc">Credit bureau, open banking, fraud check</div></div></div>
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M256 48L464 160H48L256 48Z" fill="#FF5F46"/><rect x="88" y="184" width="48" height="200" fill="#FABFBA"/><rect x="180" y="184" width="48" height="200" fill="#FABFBA"/><rect x="284" y="184" width="48" height="200" fill="#FABFBA"/><rect x="376" y="184" width="48" height="200" fill="#FABFBA"/><rect x="48" y="400" width="416" height="56" fill="#FF5F46"/></svg></div><div><div class="name">Other vendors</div><div class="desc">Open banking, fraud check</div></div></div>
     <div class="node ext rev" data-t="400" style="left:40px;top:318px;width:250px;height:132px">
       <div class="ico"><svg viewBox="0 0 512 512" fill="none"><rect x="136" y="48" width="240" height="416" rx="40" fill="#FABFBA"/><rect x="168" y="104" width="176" height="272" rx="12" fill="#fff"/><rect x="192" y="140" width="128" height="22" rx="11" fill="#FF5F46"/><rect x="192" y="190" width="96" height="22" rx="11" fill="#FABFBA"/><rect x="192" y="240" width="128" height="22" rx="11" fill="#FABFBA"/><rect x="192" y="310" width="128" height="40" rx="12" fill="#FF5F46"/><circle cx="256" cy="420" r="18" fill="#fff"/></svg></div><div><div class="name">Your loan app</div><div class="desc">A customer applies: <b style="color:var(--lava)">amount, term, channel</b>. Your app calls the vendors first.</div></div></div>
+    <div class="node ext rev" data-t="1500" style="left:40px;top:476px;width:250px;height:110px">
+      <span class="badge">external app</span>
+      <div class="ico"><svg viewBox="0 0 512 512" fill="none"><path d="M256 48L464 160H48L256 48Z" fill="#FF5F46"/><rect x="88" y="184" width="48" height="200" fill="#FABFBA"/><rect x="180" y="184" width="48" height="200" fill="#FABFBA"/><rect x="284" y="184" width="48" height="200" fill="#FABFBA"/><rect x="376" y="184" width="48" height="200" fill="#FABFBA"/><rect x="48" y="400" width="416" height="56" fill="#FF5F46"/></svg></div><div><div class="name">Credit bureau</div><div class="desc">Returns the bureau score: <b style="color:var(--lava)">688</b> for this customer</div></div></div>
     <div class="node db rev" data-t="4200" style="left:850px;top:148px;width:250px;height:116px">
       <span class="badge on">always on</span>
       <div class="ico"><svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
